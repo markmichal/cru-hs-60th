@@ -389,6 +389,7 @@
 ===================================================================== */
 const CONFIG = {
   SHEET_ID: "1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE",
+  MASTER_TAB: "Cru HS 60th Anniversary Timeline (master)",
   FORM_TAB: "Form Responses 2",
   FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform",
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
@@ -521,8 +522,13 @@ async function loadData(){
   const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
   let items = [];
   try{
-    const txt = await (await fetch(base)).text();        // first tab = master
-    items = rowsToItems(parseGviz(txt));
+    let txt = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.MASTER_TAB)}`)).text();
+    let json = parseGviz(txt);
+    if(!json.table){                                     // tab renamed? fall back to first tab
+      txt = await (await fetch(base)).text();
+      json = parseGviz(txt);
+    }
+    items = rowsToItems(json);
   }catch(e){
     console.error("Could not load the master tab:", e);
     $("dataStatus").textContent = "Couldn't reach the Google Sheet — check that it's shared 'Anyone with the link can view'";
