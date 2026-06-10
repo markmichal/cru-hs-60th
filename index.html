@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cru High School — 60 Years of Stories</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --yellow: #FFD000;
+    --lemon: #FFE378;
+    --black: #000000;
+    --white: #FFFFFF;
+    --gray: #DEDEDE;
+    --orange: #F08220;
+    --vermilion: #D34400;
+    --cyan: #00C3D8;
+    --turquoise: #007990;
+    --graphite: #585652;
+    --card: #FFFFFF;
+    --card-border: #DEDEDE;
+    --soft: #F7F6F2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--white); color: var(--black); min-height: 100vh; }
+  button { font-family: inherit; cursor: pointer; }
+
+  /* ============ HEADER ============ */
+  header {
+    position: sticky; top: 0; z-index: 200;
+    background: rgba(255,255,255,0.96); backdrop-filter: blur(8px);
+    border-bottom: 3px solid var(--yellow);
+    padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .badge-60 {
+    width: 52px; height: 52px; border-radius: 50%; background: var(--yellow); color: var(--black);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;
+  }
+  .brand h1 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.25rem; line-height: 1.1; letter-spacing: -0.02em; color: var(--black); }
+  .brand .sub { font-family: 'Sora', sans-serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); }
+  nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .nav-btn {
+    background: var(--white); color: var(--graphite); border: 1px solid var(--gray); border-radius: 3px;
+    padding: 9px 18px; font-weight: 600; font-size: 0.88rem; transition: all 0.15s;
+  }
+  .nav-btn:hover { border-color: var(--black); color: var(--black); }
+  .nav-btn.active { background: var(--yellow); color: var(--black); border-color: var(--yellow); font-weight: 700; }
+  .nav-btn.submit-cta { background: var(--black); color: var(--yellow); border-color: var(--black); font-weight: 700; }
+  .nav-btn.submit-cta:hover { background: var(--graphite); border-color: var(--graphite); }
+
+  /* ============ EDIT MODE ============ */
+  #editDot {
+    position: fixed; bottom: 10px; left: 10px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--graphite); opacity: 0.18; border: none; z-index: 400; padding: 0;
+  }
+  #editDot:hover { opacity: 0.55; }
+  .edit-banner {
+    display: none; position: sticky; top: 0; z-index: 300;
+    background: var(--orange); color: var(--black);
+    padding: 8px 28px; font-weight: 700; font-size: 0.85rem;
+    align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  }
+  body.editing .edit-banner { display: flex; }
+  .edit-banner .eb-actions { display: flex; gap: 8px; }
+  .eb-btn { background: var(--black); color: var(--white); border: none; border-radius: 3px; padding: 7px 14px; font-weight: 700; font-size: 0.8rem; }
+  .eb-btn.ghost { background: transparent; color: var(--black); text-decoration: underline; }
+  body.editing [data-set] { outline: 1px dashed var(--vermilion); outline-offset: 3px; cursor: pointer; }
+
+  /* ============ HERO ============ */
+  .hero {
+    padding: 60px 28px 44px; text-align: center;
+    background:
+      radial-gradient(ellipse 70% 90% at 50% -10%, rgba(255,208,0,0.22), transparent 70%),
+      var(--white);
+  }
+  .hero h2 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: clamp(1.9rem, 5vw, 3.4rem); letter-spacing: -0.03em; line-height: 1.12; color: var(--black); }
+  .hero h2 .yr { background: var(--yellow); padding: 0 12px; box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .hero p { color: var(--graphite); max-width: 560px; margin: 18px auto 0; font-size: 1.02rem; line-height: 1.6; }
+  .hero-image { max-width: 720px; width: 100%; margin: 26px auto 0; border-radius: 6px; display: block; box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+  .hero .data-status {
+    display: inline-block; margin-top: 20px; padding: 6px 14px;
+    border: 1px dashed var(--gray); border-radius: 3px; font-size: 0.78rem; color: var(--graphite); background: var(--white);
+  }
+  .hero .data-status.live { border-color: var(--turquoise); color: var(--turquoise); }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 0 28px 80px; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ============ TIMELINE / ERAS ============ */
+  .era-tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; padding: 24px 0 8px; }
+  .era-tab {
+    background: var(--white); border: 1px solid var(--gray); color: var(--graphite);
+    border-radius: 3px; padding: 8px 18px; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.88rem;
+    transition: all 0.15s;
+  }
+  .era-tab:hover { border-color: var(--black); color: var(--black); }
+  .era-tab.active { background: var(--yellow); border-color: var(--yellow); color: var(--black); }
+  .era-heading { text-align: center; padding: 16px 0 0; }
+  .era-heading h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 2rem; letter-spacing: -0.02em; color: var(--black); }
+  .era-heading .era-count { color: var(--graphite); font-size: 0.85rem; margin-top: 2px; }
+
+  .timeline-wrap { position: relative; overflow-x: auto; padding: 30px 0 20px; cursor: grab; background: var(--soft); border-radius: 8px; }
+  .timeline-wrap.dragging { cursor: grabbing; }
+  .timeline-track { display: flex; position: relative; padding: 40px 60px; min-width: max-content; }
+  .timeline-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; background: var(--yellow); border-radius: 2px; }
+  .t-event { position: relative; width: 250px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+  .t-event .dot {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 16px; height: 16px; border-radius: 50%; background: var(--white); border: 4px solid var(--yellow); z-index: 2;
+  }
+  .t-event.milestone .dot { border-color: var(--orange); width: 20px; height: 20px; }
+  .t-card {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 4px;
+    padding: 14px; width: 220px; transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; cursor: pointer; position: relative;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .t-card:hover { border-color: var(--black); transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
+  .t-event.milestone .t-card { border-left: 3px solid var(--orange); }
+  .t-event:nth-child(odd) .t-card { margin-bottom: 230px; }
+  .t-event:nth-child(even) .t-card { margin-top: 230px; }
+  .t-card .t-year { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.3rem; color: var(--black); }
+  .t-event.milestone .t-card .t-year { color: var(--vermilion); }
+  .t-card h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; margin: 4px 0 6px; line-height: 1.25; color: var(--black); }
+  .t-card p { font-size: 0.8rem; color: var(--graphite); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .t-card .t-thumb { width: 100%; height: 90px; object-fit: cover; border-radius: 3px; margin-bottom: 8px; }
+  .timeline-hint { text-align: center; color: var(--graphite); font-size: 0.8rem; padding-top: 10px; }
+
+  .item-btn {
+    display: inline-block; margin-top: 8px; background: var(--turquoise); color: var(--white);
+    font-weight: 700; font-size: 0.78rem; padding: 6px 14px; border-radius: 3px; text-decoration: none; border: none;
+  }
+  .item-btn:hover { background: var(--black); }
+
+  /* ============ FILTER BAR ============ */
+  .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 24px 0 20px; }
+  .filter-bar input[type="search"], .filter-bar select {
+    background: var(--white); border: 1px solid var(--gray); color: var(--black);
+    border-radius: 3px; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 0.88rem;
+  }
+  .filter-bar input[type="search"] { flex: 1 1 200px; min-width: 160px; }
+  .filter-bar select { min-width: 130px; }
+  .filter-bar input:focus, .filter-bar select:focus { outline: 2px solid var(--yellow); outline-offset: 1px; }
+  .type-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { background: var(--white); border: 1px solid var(--gray); color: var(--graphite); border-radius: 20px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600; }
+  .chip.active { background: var(--turquoise); border-color: var(--turquoise); color: var(--white); }
+  .clear-filters { background: none; border: none; color: var(--graphite); font-size: 0.8rem; text-decoration: underline; }
+  .result-count { color: var(--graphite); font-size: 0.85rem; padding-bottom: 14px; }
+
+  /* ============ GALLERY GRID ============ */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+  .g-card {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 4px; overflow: hidden;
+    cursor: pointer; transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    display: flex; flex-direction: column; position: relative;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .g-card:hover { border-color: var(--black); transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,0.10); }
+  .g-card img, .g-card .no-img { width: 100%; height: 165px; object-fit: cover; display: block; }
+  .g-card .no-img { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--soft), var(--gray)); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 2rem; color: var(--graphite); }
+  .g-body { padding: 13px 14px 15px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .g-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.72rem; }
+  .tag { padding: 3px 9px; border-radius: 12px; font-weight: 700; letter-spacing: 0.03em; }
+  .tag.year { background: var(--yellow); color: var(--black); }
+  .tag.type-Photo { background: rgba(0,195,216,0.15); color: var(--turquoise); }
+  .tag.type-Flyer { background: rgba(240,130,32,0.15); color: var(--vermilion); }
+  .tag.type-Story { background: var(--lemon); color: var(--black); }
+  .tag.type-Event, .tag.type-Milestone { background: var(--gray); color: var(--graphite); }
+  .g-body h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.98rem; line-height: 1.3; color: var(--black); }
+  .g-body .loc { color: var(--graphite); font-size: 0.8rem; }
+  .g-body .people-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
+  .person-pill { background: var(--white); border: 1px solid var(--turquoise); color: var(--turquoise); border-radius: 14px; padding: 2px 10px; font-size: 0.72rem; font-weight: 600; }
+  .person-pill:hover { background: var(--turquoise); color: var(--white); }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--graphite); }
+  .empty-state .big { font-family: 'Sora', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--black); margin-bottom: 8px; }
+
+  /* ============ PEOPLE ============ */
+  .people-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; padding-top: 24px; }
+  .p-card {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 4px; padding: 18px;
+    cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; text-align: left;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .p-card:hover { border-color: var(--turquoise); box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
+  .p-card .avatar { width: 48px; height: 48px; border-radius: 50%; background: var(--turquoise); display: flex; align-items: center; justify-content: center; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--white); margin-bottom: 10px; }
+  .p-card h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1rem; color: var(--black); }
+  .p-card .p-stats { color: var(--graphite); font-size: 0.78rem; margin-top: 4px; }
+  .profile-head { padding: 28px 0 6px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+  .profile-head .avatar-lg { width: 72px; height: 72px; border-radius: 50%; background: var(--turquoise); color: var(--white); display: flex; align-items: center; justify-content: center; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.6rem; }
+  .profile-head h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.7rem; letter-spacing: -0.02em; color: var(--black); }
+  .profile-head .trail { color: var(--graphite); font-size: 0.88rem; margin-top: 4px; }
+  .profile-head .trail b { color: var(--turquoise); font-weight: 600; }
+  .back-link { background: none; border: none; color: var(--turquoise); font-weight: 600; font-size: 0.85rem; padding: 18px 0 0; }
+
+  /* ============ MODALS ============ */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; align-items: center; justify-content: center; padding: 24px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--white); border: 1px solid var(--gray); border-radius: 6px; max-width: 640px; width: 100%; max-height: 88vh; overflow-y: auto; position: relative; box-shadow: 0 18px 60px rgba(0,0,0,0.25); }
+  .modal img.m-photo { width: 100%; max-height: 340px; object-fit: cover; display: block; }
+  .modal .m-body { padding: 22px 24px 26px; }
+  .modal h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.4rem; margin: 8px 0 10px; letter-spacing: -0.02em; color: var(--black); }
+  .modal .m-story { color: var(--graphite); line-height: 1.65; font-size: 0.94rem; white-space: pre-line; }
+  .modal .m-credit { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gray); color: var(--graphite); font-size: 0.8rem; }
+  .modal-close { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; background: rgba(0,0,0,0.55); border: none; color: var(--white); border-radius: 50%; font-size: 1.1rem; line-height: 1; z-index: 2; }
+
+  /* Settings form */
+  .s-form { padding: 22px 24px 26px; display: flex; flex-direction: column; gap: 12px; }
+  .s-form h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.2rem; letter-spacing: -0.02em; color: var(--black); }
+  .s-section { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--vermilion); padding-top: 10px; border-top: 1px solid var(--gray); }
+  .s-field { display: flex; flex-direction: column; gap: 4px; }
+  .s-field label { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; color: var(--graphite); }
+  .s-field input, .s-field textarea {
+    background: var(--white); border: 1px solid var(--gray); color: var(--black);
+    border-radius: 3px; padding: 9px 10px; font-family: 'Inter', sans-serif; font-size: 0.88rem;
+  }
+  .s-field textarea { min-height: 70px; resize: vertical; }
+  .s-field input:focus, .s-field textarea:focus { outline: 2px solid var(--yellow); outline-offset: 1px; }
+  .s-note { font-size: 0.76rem; color: var(--graphite); line-height: 1.5; }
+  .s-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 8px; }
+  .s-actions .save { background: var(--yellow); color: var(--black); border: none; border-radius: 3px; padding: 11px 24px; font-weight: 800; font-family: 'Sora', sans-serif; }
+  .s-actions .cancel { background: var(--white); border: 1px solid var(--gray); color: var(--graphite); border-radius: 3px; padding: 11px 16px; }
+
+  /* ============ FOOTER ============ */
+  footer { background: var(--black); color: var(--white); margin-top: 48px; padding: 52px 28px; text-align: center; }
+  footer h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.5rem; color: var(--white); }
+  footer p { color: var(--gray); max-width: 480px; margin: 10px auto 20px; font-size: 0.92rem; line-height: 1.6; }
+  .footer-cta { display: inline-block; background: var(--yellow); color: var(--black); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1rem; padding: 14px 34px; border-radius: 3px; text-decoration: none; transition: background 0.15s; }
+  .footer-cta:hover { background: var(--lemon); }
+  .footer-note { color: var(--graphite); font-size: 0.75rem; margin-top: 26px; }
+
+  @media (max-width: 640px) {
+    .t-event { width: 200px; }
+    .t-card { width: 180px; }
+    .t-event:nth-child(odd) .t-card { margin-bottom: 200px; }
+    .t-event:nth-child(even) .t-card { margin-top: 200px; }
+    header { padding: 12px 16px; }
+    main { padding: 0 16px 60px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div class="edit-banner">
+  <span>✏️ Editing page text &amp; buttons — saves to the "Site Settings" tab of the Google Sheet. Timeline content is edited in the spreadsheet itself.</span>
+  <div class="eb-actions">
+    <button class="eb-btn" id="openSettingsBtn">Edit page text &amp; buttons</button>
+    <button class="eb-btn ghost" id="exitEditBtn">Exit editing</button>
+  </div>
+</div>
+
+<header>
+  <div class="brand">
+    <div class="badge-60" data-set="badgeText">60</div>
+    <div>
+      <h1 data-set="headerTitle">Cru High School</h1>
+      <div class="sub" data-set="headerSubtitle">1965 – 2025 &middot; Sixty Years of Stories</div>
+    </div>
+  </div>
+  <nav>
+    <button class="nav-btn active" data-view="timeline" data-set="navTimeline">Timeline</button>
+    <button class="nav-btn" data-view="gallery" data-set="navGallery">Gallery</button>
+    <button class="nav-btn" data-view="people" data-set="navPeople">People</button>
+    <button class="nav-btn submit-cta" id="submitBtn" data-set="submitLabel">Share Your Story</button>
+  </nav>
+</header>
+
+<div class="hero">
+  <h2><span data-set="heroHeading">Sixty years of reaching teenagers with</span> <span class="yr" data-set="heroHighlight">the gospel.</span></h2>
+  <p data-set="heroText">From Student Venture to Cru High School — explore the moments, the people, and the places. Then add your own photos, flyers, and stories to the collection.</p>
+  <img class="hero-image" id="heroImage" alt="" style="display:none">
+  <div><div class="data-status" id="dataStatus">Loading&hellip;</div></div>
+</div>
+
+<main>
+  <!-- TIMELINE VIEW -->
+  <section class="view active" id="view-timeline">
+    <div class="era-tabs" id="eraTabs"></div>
+    <div class="era-heading" id="eraHeading" style="display:none">
+      <h3 id="eraTitle"></h3>
+      <div class="era-count" id="eraCount"></div>
+    </div>
+    <div class="timeline-wrap" id="timelineWrap">
+      <div class="timeline-track" id="timelineTrack"></div>
+    </div>
+    <div class="timeline-hint" data-set="timelineHint">Drag or scroll sideways &middot; Click a decade above to zoom into that era &middot; Click a card for the full story</div>
+  </section>
+
+  <!-- GALLERY VIEW -->
+  <section class="view" id="view-gallery">
+    <div class="filter-bar">
+      <input type="search" id="searchBox" placeholder="Search titles, stories, places, people&hellip;" aria-label="Search submissions">
+      <select id="decadeFilter" aria-label="Filter by era"><option value="">All eras</option></select>
+      <select id="locationFilter" aria-label="Filter by location"><option value="">All locations</option></select>
+      <select id="personFilter" aria-label="Filter by person"><option value="">All people</option></select>
+      <div class="type-chips" id="typeChips"></div>
+      <button class="clear-filters" id="clearFilters">Clear all</button>
+    </div>
+    <div class="result-count" id="resultCount"></div>
+    <div class="grid" id="galleryGrid"></div>
+    <div class="empty-state" id="galleryEmpty" style="display:none">
+      <div class="big">Nothing here yet</div>
+      <div>Try removing a filter — or be the first to share something from this era.</div>
+    </div>
+  </section>
+
+  <!-- PEOPLE VIEW -->
+  <section class="view" id="view-people">
+    <div id="peopleIndex"><div class="people-grid" id="peopleGrid"></div></div>
+    <div id="personProfile" style="display:none">
+      <button class="back-link" id="backToPeople">&larr; All people</button>
+      <div class="profile-head">
+        <div class="avatar-lg" id="profileAvatar"></div>
+        <div>
+          <h3 id="profileName"></h3>
+          <div class="trail" id="profileTrail"></div>
+        </div>
+      </div>
+      <div class="grid" id="profileGrid" style="padding-top:18px"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <h3 data-set="footerHeading">Were you part of the story?</h3>
+  <p data-set="footerText">Old photos, camp flyers, retreat T-shirts, a moment that changed your life — we want it all. Submissions are reviewed by our team before appearing on the site.</p>
+  <a class="footer-cta" href="#" id="footerSubmit" data-set="footerCtaLabel">Submit a Photo or Story</a>
+  <div class="footer-note" data-set="footerNote">Cru High School Ministry &middot; 60th Anniversary Project</div>
+</footer>
+
+<button id="editDot" aria-label="Editor access"></button>
+
+<!-- DETAIL MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" data-close="modalOverlay" aria-label="Close">&times;</button>
+    <img class="m-photo" id="modalImg" alt="" style="display:none">
+    <div class="m-body">
+      <div class="g-meta" id="modalMeta"></div>
+      <h3 id="modalTitle"></h3>
+      <div class="m-story" id="modalStory"></div>
+      <div id="modalBtnWrap"></div>
+      <div class="m-credit" id="modalCredit"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal" role="dialog" aria-modal="true">
+    <button class="modal-close" data-close="settingsOverlay" aria-label="Close">&times;</button>
+    <div class="s-form" id="settingsForm">
+      <h3>Page text &amp; buttons</h3>
+      <div class="s-note" id="settingsNote"></div>
+      <div id="settingsFields"></div>
+      <div class="s-actions">
+        <button class="cancel" data-close="settingsOverlay">Cancel</button>
+        <button class="save" id="settingsSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG
+   ---------------------------------------------------------------------
+   SHEET_ID    The master Google Sheet. Must be shared "Anyone with the
+               link can view."
+   FORM_TAB    Tab where Google Form submissions land.
+   FORM_URL    Default destination for the submit buttons. Once the site
+               is live you can change this from the hidden editor instead
+               (it's saved in the "Site Settings" tab).
+   SCRIPT_URL  Apps Script Web App URL — required for the hidden editor
+               to save page text to the Sheet. Until set, edits are
+               temporary (this browser session only).
+   EDIT_PIN    PIN for the hidden editor dot (bottom-left corner).
+               Change it here AND at the top of the Apps Script.
+   ERAS        Leave [] for automatic decades. For named eras:
+               [ {name:"Founding Years", start:1965, end:1982}, ... ]
+   MAX_TRACK   Max cards on any one timeline strip.
+===================================================================== */
+const CONFIG = {
+  SHEET_ID: "1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE",
+  FORM_TAB: "Form Responses 2",
+  FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
+  EDIT_PIN: "6060",
+  ERAS: [],
+  MAX_TRACK: 20
+};
+
+/* Editable page settings: key, label, type, where it appears.
+   Defaults below match the HTML; saved values from the "Site Settings"
+   tab override them. */
+const SETTINGS_SCHEMA = [
+  { section: "Header" },
+  { key:"badgeText",      label:"Badge (the circle in the corner)" },
+  { key:"headerTitle",    label:"Site title" },
+  { key:"headerSubtitle", label:"Subtitle" },
+  { key:"navTimeline",    label:"Tab 1 label" },
+  { key:"navGallery",     label:"Tab 2 label" },
+  { key:"navPeople",      label:"Tab 3 label" },
+  { section: "Hero (top of page)" },
+  { key:"heroHeading",    label:"Big headline", type:"textarea" },
+  { key:"heroHighlight",  label:"Highlighted words (shown in yellow)" },
+  { key:"heroText",       label:"Intro paragraph", type:"textarea" },
+  { key:"heroImage",      label:"Hero image URL (optional — Drive link works, blank = no image)" },
+  { section: "Buttons" },
+  { key:"submitLabel",    label:"Header button text" },
+  { key:"footerCtaLabel", label:"Footer button text" },
+  { key:"formUrl",        label:"Where both submit buttons go (URL)" },
+  { section: "Timeline" },
+  { key:"timelineHint",   label:"Hint line under the timeline" },
+  { section: "Footer" },
+  { key:"footerHeading",  label:"Footer heading" },
+  { key:"footerText",     label:"Footer paragraph", type:"textarea" },
+  { key:"footerNote",     label:"Small print at the bottom" }
+];
+
+/* ============ STATE ============ */
+let DATA = [];
+let SETTINGS = {};          // values loaded from the Site Settings tab
+let filters = { search:"", era:"", location:"", person:"", type:"" };
+let currentEra = null;
+let editing = false;
+
+/* ============ HELPERS ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const decadeOf = y => y ? Math.floor(y/10)*10 + "s" : "";
+const initials = name => name.split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+const peopleList = item => (item.people||"").split(/[,;]/).map(s=>s.trim()).filter(Boolean);
+
+function eraOf(year){
+  if(!year) return "";
+  if(CONFIG.ERAS.length){
+    const e = CONFIG.ERAS.find(e => year >= e.start && year <= e.end);
+    return e ? e.name : "";
+  }
+  return decadeOf(year);
+}
+function eraList(){
+  if(CONFIG.ERAS.length) return CONFIG.ERAS.map(e => e.name);
+  return [...new Set(DATA.filter(d=>d.year && d.approved).map(d=>decadeOf(d.year)))].sort();
+}
+
+function driveImg(url){
+  if(!url) return "";
+  const m = String(url).match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200` : url;
+}
+
+const formUrl = () => SETTINGS.formUrl || CONFIG.FORM_URL;
+
+/* ============ SETTINGS: defaults, apply, load ============ */
+function settingDefaults(){
+  // Read the original text out of the HTML so defaults always match
+  document.querySelectorAll("[data-set]").forEach(el => {
+    const k = el.dataset.set;
+    if(!(k in SETTINGS) || SETTINGS[k] === "") SETTINGS[k] = SETTINGS[k] ?? "";
+    el.dataset.default = el.textContent.trim();
+  });
+}
+function settingValue(key){
+  if(SETTINGS[key]) return SETTINGS[key];
+  const el = document.querySelector(`[data-set="${key}"]`);
+  return el ? el.dataset.default : "";
+}
+function applySettings(){
+  document.querySelectorAll("[data-set]").forEach(el => {
+    const v = SETTINGS[el.dataset.set];
+    if(v) el.textContent = v;
+  });
+  const hi = $("heroImage");
+  if(SETTINGS.heroImage){
+    hi.src = driveImg(SETTINGS.heroImage);
+    hi.style.display = "block";
+  } else {
+    hi.style.display = "none";
+  }
+}
+
+/* ============ GOOGLE SHEET LOADER ============ */
+function parseGviz(txt){
+  return JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}")+1));
+}
+function rowsToItems(json){
+  const cols = json.table.cols.map(c => (c.label||"").toLowerCase().trim());
+  const idx = name => cols.findIndex(c => c.includes(name));
+  const I = {
+    title:idx("title"), year:idx("year"), loc:idx("location"), people:idx("people"),
+    type:idx("type"), story:idx("story"), photo:idx("photo"),
+    bl:idx("button label"), bu:idx("button url"),
+    approved:idx("approved"), tl:idx("timeline")
+  };
+  const val = (row,i) => (i>=0 && row.c && row.c[i]) ? (row.c[i].v ?? "") : "";
+  return json.table.rows.map(r => ({
+    title: String(val(r,I.title)),
+    year: parseInt(val(r,I.year)) || null,
+    location: String(val(r,I.loc)),
+    people: String(val(r,I.people)),
+    type: String(val(r,I.type)) || "Photo",
+    story: String(val(r,I.story)),
+    photo: String(val(r,I.photo)),
+    buttonLabel: String(val(r,I.bl)),
+    buttonUrl: String(val(r,I.bu)),
+    approved: val(r,I.approved) === true || String(val(r,I.approved)).toUpperCase() === "TRUE",
+    onTimeline: val(r,I.tl) === true || String(val(r,I.tl)).toUpperCase() === "TRUE"
+  })).filter(d => d.title && d.approved);
+}
+
+async function loadData(){
+  const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
+  let items = [];
+  try{
+    const txt = await (await fetch(base)).text();        // first tab = master
+    items = rowsToItems(parseGviz(txt));
+  }catch(e){
+    console.error("Could not load the master tab:", e);
+    $("dataStatus").textContent = "Couldn't reach the Google Sheet — check that it's shared 'Anyone with the link can view'";
+    DATA = [];
+    return;
+  }
+  try{
+    const txt2 = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.FORM_TAB)}`)).text();
+    const json2 = parseGviz(txt2);
+    if(json2.table) items = items.concat(rowsToItems(json2));
+  }catch(e){ /* no form tab yet — fine */ }
+
+  // Site Settings tab (key/value)
+  try{
+    const txt3 = await (await fetch(`${base}&sheet=${encodeURIComponent("Site Settings")}`)).text();
+    const json3 = parseGviz(txt3);
+    if(json3.table){
+      json3.table.rows.forEach(r => {
+        const k = r.c && r.c[0] ? String(r.c[0].v ?? "").trim() : "";
+        const v = r.c && r.c[1] ? String(r.c[1].v ?? "") : "";
+        if(k) SETTINGS[k] = v;
+      });
+    }
+  }catch(e){ /* no settings tab yet — defaults apply */ }
+
+  DATA = items;
+  $("dataStatus").textContent = `Live from Google Sheets — ${DATA.length} approved item${DATA.length===1?"":"s"}`;
+  $("dataStatus").classList.add("live");
+}
+
+/* ============ RENDER: TIMELINE ============ */
+function timelineItems(){
+  const pool = DATA.filter(d => d.year);
+  if(currentEra === null){
+    return pool.filter(d => d.onTimeline).sort((a,b)=>a.year-b.year).slice(0, CONFIG.MAX_TRACK);
+  }
+  const inEra = pool.filter(d => eraOf(d.year) === currentEra);
+  const priority = inEra.filter(d => d.onTimeline || d.type === "Milestone");
+  const rest = inEra.filter(d => !priority.includes(d));
+  return priority.concat(rest).slice(0, CONFIG.MAX_TRACK).sort((a,b)=>a.year-b.year);
+}
+
+function renderTimeline(){
+  const events = timelineItems();
+  $("timelineTrack").innerHTML = events.map(e => `
+    <div class="t-event ${e.type==='Milestone'?'milestone':''}">
+      <div class="t-card" data-key="${DATA.indexOf(e)}">
+        ${e.photo ? `<img class="t-thumb" src="${esc(driveImg(e.photo))}" alt="" loading="lazy">` : ""}
+        <div class="t-year">${e.year}</div>
+        <h4>${esc(e.title)}</h4>
+        ${e.story ? `<p>${esc(e.story)}</p>` : ""}
+      </div>
+      <div class="dot"></div>
+    </div>`).join("");
+
+  const eras = eraList();
+  $("eraTabs").innerHTML =
+    `<button class="era-tab ${currentEra===null?'active':''}" data-era="__all__">Overview</button>` +
+    eras.map(e => `<button class="era-tab ${currentEra===e?'active':''}" data-era="${esc(e)}">${esc(e)}</button>`).join("");
+
+  if(currentEra){
+    $("eraHeading").style.display = "block";
+    $("eraTitle").textContent = currentEra;
+    const total = DATA.filter(d => eraOf(d.year) === currentEra).length;
+    $("eraCount").textContent = `${Math.min(total, CONFIG.MAX_TRACK)} of ${total} item${total===1?"":"s"} in this era` + (total > CONFIG.MAX_TRACK ? " — see the rest in the Gallery" : "");
+  } else {
+    $("eraHeading").style.display = "none";
+  }
+}
+
+/* ============ RENDER: GALLERY ============ */
+function cardHTML(item){
+  const key = DATA.indexOf(item);
+  const ppl = peopleList(item);
+  return `
+  <div class="g-card" data-key="${key}">
+    ${item.photo
+      ? `<img src="${esc(driveImg(item.photo))}" alt="${esc(item.title)}" loading="lazy">`
+      : `<div class="no-img">${item.year || "?"}</div>`}
+    <div class="g-body">
+      <div class="g-meta">
+        ${item.year ? `<span class="tag year">${item.year}</span>` : ""}
+        <span class="tag type-${esc(item.type)}">${esc(item.type)}</span>
+      </div>
+      <h4>${esc(item.title)}</h4>
+      ${item.location ? `<div class="loc">📍 ${esc(item.location)}</div>` : ""}
+      ${ppl.length ? `<div class="people-row">${ppl.map(p=>`<button class="person-pill" data-person="${esc(p)}">${esc(p)}</button>`).join("")}</div>` : ""}
+    </div>
+  </div>`;
+}
+
+function applyFilters(){
+  const q = filters.search.toLowerCase();
+  return DATA.filter(d => {
+    if(filters.era && eraOf(d.year) !== filters.era) return false;
+    if(filters.location && d.location !== filters.location) return false;
+    if(filters.person && !peopleList(d).includes(filters.person)) return false;
+    if(filters.type && d.type !== filters.type) return false;
+    if(q){
+      const hay = `${d.title} ${d.story} ${d.location} ${d.people}`.toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=>(a.year||0)-(b.year||0));
+}
+
+function renderGallery(){
+  const items = applyFilters();
+  $("galleryGrid").innerHTML = items.map(cardHTML).join("");
+  $("galleryEmpty").style.display = items.length ? "none" : "block";
+  $("resultCount").textContent = `${items.length} item${items.length===1?"":"s"}`;
+}
+
+function buildFilterOptions(){
+  const eras = eraList();
+  const locs = [...new Set(DATA.map(d=>d.location).filter(Boolean))].sort();
+  const people = [...new Set(DATA.flatMap(peopleList))].sort();
+  const types = [...new Set(DATA.map(d=>d.type).filter(Boolean))];
+  $("decadeFilter").innerHTML = `<option value="">All eras</option>` + eras.map(d=>`<option>${esc(d)}</option>`).join("");
+  $("locationFilter").innerHTML = `<option value="">All locations</option>` + locs.map(l=>`<option>${esc(l)}</option>`).join("");
+  $("personFilter").innerHTML = `<option value="">All people</option>` + people.map(p=>`<option>${esc(p)}</option>`).join("");
+  $("typeChips").innerHTML = types.map(t=>`<button class="chip ${filters.type===t?'active':''}" data-type="${esc(t)}">${esc(t)}</button>`).join("");
+}
+
+/* ============ RENDER: PEOPLE ============ */
+function renderPeople(){
+  const map = {};
+  DATA.forEach(d => peopleList(d).forEach(p => {
+    if(!map[p]) map[p] = { items:0, locs:new Set() };
+    map[p].items++;
+    if(d.location) map[p].locs.add(d.location);
+  }));
+  const names = Object.keys(map).sort();
+  $("peopleGrid").innerHTML = names.length ? names.map(n => `
+    <button class="p-card" data-person="${esc(n)}">
+      <div class="avatar">${initials(n)}</div>
+      <h4>${esc(n)}</h4>
+      <div class="p-stats">${map[n].items} item${map[n].items===1?"":"s"}${map[n].locs.size?` · ${map[n].locs.size} location${map[n].locs.size===1?"":"s"}`:""}</div>
+    </button>`).join("")
+    : `<div class="empty-state"><div class="big">No tagged people yet</div><div>People appear here once submissions include names.</div></div>`;
+}
+
+function showProfile(name){
+  const items = DATA.filter(d => peopleList(d).includes(name)).sort((a,b)=>(a.year||0)-(b.year||0));
+  const locs = [...new Set(items.map(i=>i.location).filter(Boolean))];
+  const years = items.map(i=>i.year).filter(Boolean);
+  $("profileAvatar").textContent = initials(name);
+  $("profileName").textContent = name;
+  $("profileTrail").innerHTML =
+    (years.length ? `<b>${Math.min(...years)} – ${Math.max(...years)}</b> · ` : "") +
+    (locs.length ? `Seen in: <b>${esc(locs.join(" → "))}</b>` : "No locations recorded yet");
+  $("profileGrid").innerHTML = items.map(cardHTML).join("");
+  $("peopleIndex").style.display = "none";
+  $("personProfile").style.display = "block";
+  switchView("people");
+}
+
+/* ============ DETAIL MODAL ============ */
+function openModal(key){
+  const d = DATA[key];
+  if(!d) return;
+  const img = $("modalImg");
+  if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
+  $("modalMeta").innerHTML =
+    (d.year ? `<span class="tag year">${d.year}</span>` : "") +
+    `<span class="tag type-${esc(d.type)}">${esc(d.type)}</span>` +
+    (d.location ? `<span style="color:var(--gray)">📍 ${esc(d.location)}</span>` : "");
+  $("modalTitle").textContent = d.title;
+  $("modalStory").textContent = d.story || "";
+  $("modalBtnWrap").innerHTML = (d.buttonLabel && d.buttonUrl)
+    ? `<a class="item-btn" href="${esc(d.buttonUrl)}" target="_blank" rel="noopener">${esc(d.buttonLabel)} →</a>` : "";
+  const ppl = peopleList(d);
+  $("modalCredit").textContent = ppl.length ? `People: ${ppl.join(", ")}` : "";
+  $("modalOverlay").classList.add("open");
+}
+
+/* ============ PAGE EDITOR ============ */
+function enterEditMode(){
+  const pin = prompt("Editor PIN:");
+  if(pin === null) return;
+  if(pin !== CONFIG.EDIT_PIN){ alert("Incorrect PIN."); return; }
+  editing = true;
+  document.body.classList.add("editing");
+}
+function exitEditMode(){
+  editing = false;
+  document.body.classList.remove("editing");
+}
+
+function openSettings(){
+  $("settingsNote").textContent = CONFIG.SCRIPT_URL
+    ? "Saves to the \"Site Settings\" tab of the Google Sheet — changes appear for every visitor."
+    : "⚠ SCRIPT_URL isn't set in CONFIG yet, so changes are temporary (this browser session only). Follow the setup guide to connect the Apps Script.";
+  $("settingsFields").innerHTML = SETTINGS_SCHEMA.map(f => {
+    if(f.section) return `<div class="s-section">${esc(f.section)}</div>`;
+    const v = f.key === "formUrl" ? (SETTINGS.formUrl || CONFIG.FORM_URL)
+            : f.key === "heroImage" ? (SETTINGS.heroImage || "")
+            : settingValue(f.key);
+    return `<div class="s-field">
+      <label for="set-${f.key}">${esc(f.label)}</label>
+      ${f.type === "textarea"
+        ? `<textarea id="set-${f.key}" data-skey="${f.key}">${esc(v)}</textarea>`
+        : `<input id="set-${f.key}" data-skey="${f.key}" value="${esc(v)}">`}
+    </div>`;
+  }).join("");
+  $("settingsOverlay").classList.add("open");
+}
+
+async function saveSettings(){
+  const newSettings = {};
+  document.querySelectorAll("[data-skey]").forEach(el => { newSettings[el.dataset.skey] = el.value.trim(); });
+  $("settingsSave").textContent = "Saving…"; $("settingsSave").disabled = true;
+  try{
+    if(CONFIG.SCRIPT_URL){
+      const res = await fetch(CONFIG.SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ pin: CONFIG.EDIT_PIN, action: "saveSettings", settings: newSettings })
+      });
+      const out = await res.json();
+      if(!out.ok) throw new Error(out.error || "Save failed");
+    }
+    Object.assign(SETTINGS, newSettings);
+    applySettings();
+    $("settingsOverlay").classList.remove("open");
+  }catch(e){
+    alert("Couldn't save: " + e.message + "\n\nCheck that SCRIPT_URL is deployed and the PIN matches the Apps Script.");
+  }finally{
+    $("settingsSave").textContent = "Save"; $("settingsSave").disabled = false;
+  }
+}
+
+/* ============ VIEW SWITCHING ============ */
+function switchView(name){
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-"+name));
+  document.querySelectorAll(".nav-btn[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+}
+function renderAll(){
+  renderTimeline();
+  buildFilterOptions();
+  renderGallery();
+  renderPeople();
+}
+
+/* ============ EVENTS ============ */
+document.addEventListener("click", e => {
+  // In edit mode, clicking any editable text opens the settings panel
+  if(editing && e.target.closest("[data-set]")){
+    const el = e.target.closest("[data-set]");
+    openSettings();
+    const input = document.querySelector(`[data-skey="${el.dataset.set}"]`);
+    if(input) setTimeout(() => input.focus(), 50);
+    e.preventDefault();
+    return;
+  }
+
+  const nav = e.target.closest(".nav-btn[data-view]");
+  if(nav){ switchView(nav.dataset.view); if(nav.dataset.view==="people"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; } return; }
+
+  const eraTab = e.target.closest(".era-tab");
+  if(eraTab){
+    currentEra = eraTab.dataset.era === "__all__" ? null : eraTab.dataset.era;
+    renderTimeline();
+    $("timelineWrap").scrollLeft = 0;
+    return;
+  }
+
+  const pill = e.target.closest("[data-person]");
+  if(pill){ e.stopPropagation(); showProfile(pill.dataset.person); return; }
+
+  const card = e.target.closest("[data-key]");
+  if(card){ openModal(parseInt(card.dataset.key)); return; }
+
+  const chip = e.target.closest(".chip");
+  if(chip){
+    filters.type = filters.type === chip.dataset.type ? "" : chip.dataset.type;
+    document.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c.dataset.type === filters.type));
+    renderGallery(); return;
+  }
+
+  if(e.target.id === "clearFilters"){
+    filters = { search:"", era:"", location:"", person:"", type:"" };
+    $("searchBox").value = ""; $("decadeFilter").value = ""; $("locationFilter").value = ""; $("personFilter").value = "";
+    document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+    renderGallery(); return;
+  }
+
+  if(e.target.id === "backToPeople"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; return; }
+  if(e.target.dataset.close){ $(e.target.dataset.close).classList.remove("open"); return; }
+  if(e.target.id === "modalOverlay"){ $("modalOverlay").classList.remove("open"); return; }
+  if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
+  if(e.target.id === "submitBtn" || e.target.id === "footerSubmit"){ e.preventDefault(); window.open(formUrl(), "_blank"); return; }
+  if(e.target.id === "editDot"){ editing ? exitEditMode() : enterEditMode(); return; }
+  if(e.target.id === "exitEditBtn"){ exitEditMode(); return; }
+  if(e.target.id === "openSettingsBtn"){ openSettings(); return; }
+  if(e.target.id === "settingsSave"){ saveSettings(); return; }
+});
+
+$("searchBox").addEventListener("input", e => { filters.search = e.target.value; renderGallery(); });
+$("decadeFilter").addEventListener("change", e => { filters.era = e.target.value; renderGallery(); });
+$("locationFilter").addEventListener("change", e => { filters.location = e.target.value; renderGallery(); });
+$("personFilter").addEventListener("change", e => { filters.person = e.target.value; renderGallery(); });
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape"){ $("modalOverlay").classList.remove("open"); $("settingsOverlay").classList.remove("open"); }
+});
+
+/* Drag-to-scroll on the timeline */
+(function(){
+  const wrap = $("timelineWrap");
+  let down=false, startX=0, startScroll=0, moved=false;
+  wrap.addEventListener("mousedown", e => { down=true; moved=false; startX=e.pageX; startScroll=wrap.scrollLeft; wrap.classList.add("dragging"); });
+  window.addEventListener("mousemove", e => { if(!down) return; const dx=e.pageX-startX; if(Math.abs(dx)>4) moved=true; wrap.scrollLeft=startScroll-dx; });
+  window.addEventListener("mouseup", () => { down=false; wrap.classList.remove("dragging"); });
+  wrap.addEventListener("click", e => { if(moved){ e.stopPropagation(); e.preventDefault(); } }, true);
+})();
+
+/* ============ INIT ============ */
+(async function init(){
+  settingDefaults();
+  await loadData();
+  applySettings();
+  renderAll();
+})();
+</script>
+</body>
+</html>
