@@ -1,6 +1,6 @@
 # Cru High School 60th Anniversary Site
 
-Single-file static website celebrating 60 years of Cru High School Ministry (1965–2025). Interactive timeline, filterable gallery, and people view, with all content served live from a Google Sheet.
+Single-file static website celebrating 60 years of Cru High School Ministry (1967–2027). Interactive timeline, filterable gallery, and people view, with all content served live from a Google Sheet.
 
 ## Architecture (do not break these connections)
 
