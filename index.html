@@ -170,7 +170,14 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
   .g-card:hover { border-color: var(--black); transform: translateY(-3px); box-shadow: 0 8px 22px rgba(0,0,0,0.10); }
+  .g-media { position: relative; }
   .g-card img, .g-card .no-img { width: 100%; height: 165px; object-fit: cover; display: block; }
+  .play-badge {
+    position: absolute; inset: 0; margin: auto; width: 54px; height: 54px; border-radius: 50%;
+    background: rgba(0,0,0,0.55); color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem; padding-left: 4px; pointer-events: none; transition: background 0.15s;
+  }
+  .g-card:hover .play-badge { background: var(--vermilion); }
   .g-card .no-img { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--soft), var(--gray)); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 2rem; color: var(--graphite); }
   .g-body { padding: 13px 14px 15px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
   .g-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.72rem; }
@@ -180,6 +187,7 @@
   .tag.type-Flyer { background: rgba(240,130,32,0.15); color: var(--vermilion); }
   .tag.type-Story { background: var(--lemon); color: var(--black); }
   .tag.type-Event, .tag.type-Milestone { background: var(--gray); color: var(--graphite); }
+  .tag.type-Video { background: rgba(211,68,0,0.14); color: var(--vermilion); }
   .g-body h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.98rem; line-height: 1.3; color: var(--black); }
   .g-body .loc { color: var(--graphite); font-size: 0.8rem; }
   .g-body .people-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
@@ -243,6 +251,8 @@
   .modal-overlay.open { display: flex; }
   .modal { background: var(--white); border: 1px solid var(--gray); border-radius: 6px; max-width: 640px; width: 100%; max-height: 88vh; overflow-y: auto; position: relative; box-shadow: 0 18px 60px rgba(0,0,0,0.25); }
   .modal img.m-photo { width: 100%; max-height: 340px; object-fit: cover; display: block; }
+  .m-video { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
+  .m-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
   .modal .m-body { padding: 22px 24px 26px; }
   .modal h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.4rem; margin: 8px 0 10px; letter-spacing: -0.02em; color: var(--black); }
   .modal .m-story { color: var(--graphite); line-height: 1.65; font-size: 0.94rem; white-space: pre-line; }
@@ -409,6 +419,7 @@
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" role="dialog" aria-modal="true">
     <button class="modal-close" data-close="modalOverlay" aria-label="Close">&times;</button>
+    <div id="modalVideo" style="display:none"></div>
     <img class="m-photo" id="modalImg" alt="" style="display:none">
     <div class="m-body">
       <div class="g-meta" id="modalMeta"></div>
@@ -531,6 +542,26 @@ function driveImg(url){
   return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200` : url;
 }
 
+/* Turn a YouTube or Google Drive video LINK into an embeddable player + a
+   thumbnail. Returns null if the link isn't a recognized video (so the card
+   just falls back to a photo/placeholder). Videos are never hosted here —
+   only embedded, so they load only when a visitor opens that item. */
+function videoInfo(url){
+  if(!url) return null;
+  const s = String(url).trim();
+  const yt = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  if(yt) return {
+    embed: `https://www.youtube.com/embed/${yt[1]}`,
+    thumb: `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`
+  };
+  const dr = s.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  if(dr) return {
+    embed: `https://drive.google.com/file/d/${dr[1]}/preview`,
+    thumb: `https://drive.google.com/thumbnail?id=${dr[1]}&sz=w1200`
+  };
+  return null;
+}
+
 /* ============ STAFF SERVICE HELPERS ============ */
 // Render a year span from a stint without ever printing undefined/NaN.
 function spanText(s){
@@ -603,7 +634,7 @@ function rowsToItems(json){
   const idx = name => cols.findIndex(c => c.includes(name));
   const I = {
     title:idx("title"), year:idx("year"), loc:idx("location"), people:idx("people"),
-    type:idx("type"), story:idx("story"), photo:idx("photo"),
+    type:idx("type"), story:idx("story"), photo:idx("photo"), video:idx("video"),
     bl:idx("button label"), bu:idx("button url"),
     approved:idx("approved"), tl:idx("timeline")
   };
@@ -616,6 +647,7 @@ function rowsToItems(json){
     type: String(val(r,I.type)) || "Photo",
     story: String(val(r,I.story)),
     photo: String(val(r,I.photo)),
+    video: String(val(r,I.video)),
     buttonLabel: String(val(r,I.bl)),
     buttonUrl: String(val(r,I.bu)),
     approved: val(r,I.approved) === true || String(val(r,I.approved)).toUpperCase() === "TRUE",
@@ -737,11 +769,16 @@ function renderTimeline(){
 function cardHTML(item){
   const key = DATA.indexOf(item);
   const ppl = peopleList(item);
+  const vid = videoInfo(item.video);
+  const thumbUrl = vid ? vid.thumb : (item.photo ? driveImg(item.photo) : "");
   return `
   <div class="g-card" data-key="${key}">
-    ${item.photo
-      ? `<img src="${esc(driveImg(item.photo))}" alt="${esc(item.title)}" loading="lazy">`
-      : `<div class="no-img">${item.year || "?"}</div>`}
+    <div class="g-media">
+      ${thumbUrl
+        ? `<img src="${esc(thumbUrl)}" alt="${esc(item.title)}" loading="lazy">`
+        : `<div class="no-img">${item.year || "?"}</div>`}
+      ${vid ? `<span class="play-badge" aria-hidden="true">▶</span>` : ""}
+    </div>
     <div class="g-body">
       <div class="g-meta">
         ${item.year ? `<span class="tag year">${item.year}</span>` : ""}
@@ -925,11 +962,27 @@ function showLocation(name){
 }
 
 /* ============ DETAIL MODAL ============ */
+function closeModal(){
+  $("modalOverlay").classList.remove("open");
+  $("modalVideo").innerHTML = "";        // stop playback / free the player
+  $("modalVideo").style.display = "none";
+}
+
 function openModal(key){
   const d = DATA[key];
   if(!d) return;
   const img = $("modalImg");
-  if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
+  const mv = $("modalVideo");
+  const vid = videoInfo(d.video);
+  if(vid){
+    // Embedded player (16:9). Source is a link only — nothing is hosted here.
+    mv.innerHTML = `<div class="m-video"><iframe src="${esc(vid.embed)}" allow="encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+    mv.style.display = "block";
+    img.style.display = "none";
+  } else {
+    mv.innerHTML = ""; mv.style.display = "none";
+    if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
+  }
   $("modalMeta").innerHTML =
     (d.year ? `<span class="tag year">${d.year}</span>` : "") +
     `<span class="tag type-${esc(d.type)}">${esc(d.type)}</span>` +
@@ -1076,8 +1129,8 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "backToPeople"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; return; }
   if(e.target.id === "backToLocations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; return; }
-  if(e.target.dataset.close){ $(e.target.dataset.close).classList.remove("open"); return; }
-  if(e.target.id === "modalOverlay"){ $("modalOverlay").classList.remove("open"); return; }
+  if(e.target.dataset.close){ if(e.target.dataset.close==="modalOverlay") closeModal(); else $(e.target.dataset.close).classList.remove("open"); return; }
+  if(e.target.id === "modalOverlay"){ closeModal(); return; }
   if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
   if(e.target.id === "submitBtn" || e.target.id === "footerSubmit"){ e.preventDefault(); window.open(formUrl(), "_blank"); return; }
   if(e.target.id === "editDot"){ editing ? exitEditMode() : enterEditMode(); return; }
@@ -1091,7 +1144,7 @@ $("decadeFilter").addEventListener("change", e => { filters.era = e.target.value
 $("locationFilter").addEventListener("change", e => { filters.location = e.target.value; renderGallery(); });
 $("personFilter").addEventListener("change", e => { filters.person = e.target.value; renderGallery(); });
 document.addEventListener("keydown", e => {
-  if(e.key === "Escape"){ $("modalOverlay").classList.remove("open"); $("settingsOverlay").classList.remove("open"); }
+  if(e.key === "Escape"){ closeModal(); $("settingsOverlay").classList.remove("open"); }
 });
 
 /* Drag-to-scroll on the timeline */

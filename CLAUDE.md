@@ -20,6 +20,7 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 - `ERAS: []` means automatic decades (1960s, 1970s…). The team may later switch to named eras: `[{name:"Founding Years", start:1965, end:1982}, ...]` — everything (tabs, filters, zoom) adapts automatically.
 - `MAX_TRACK: 20` caps cards per timeline strip; era zoom shows up to 20 per era with milestones prioritized.
 - `driveImg()` converts Google Drive share links to embeddable thumbnail URLs (`drive.google.com/thumbnail?id=...&sz=w1200`) — this is how all photos are served.
+- `videoInfo()` turns a YouTube or Google Drive **link** in the optional `Video` column into an embedded player + thumbnail. Videos are never hosted/uploaded — only embedded, and the player loads lazily when a visitor opens the item. An item with type `Video` shows a play badge in the gallery and an inline iframe player in the detail modal; it appears under the auto-generated "Video" type chip. Add a video by adding a Sheet row with type `Video` and pasting a YouTube/Drive link in the `Video` column (a `Photo` link is optional — a custom thumbnail; otherwise the platform thumbnail is used).
 - Column matching in `rowsToItems()` is by case-insensitive substring on header names (e.g. "photo" matches "Upload your photo or flyer"), so the form tab and master tab can have different column orders.
 
 ## Brand rules (Cru brand kit)
