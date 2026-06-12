@@ -200,7 +200,9 @@
   /* ============ SERVICE JOURNEY (person profile) ============ */
   .section-label { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--turquoise); margin: 24px 0 10px; }
   .journey { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .j-chip { display: inline-flex; flex-direction: column; gap: 1px; background: var(--white); border: 1px solid var(--turquoise); border-radius: 14px; padding: 8px 16px; }
+  .j-chip { display: inline-flex; flex-direction: column; gap: 1px; background: var(--white); border: 1px solid var(--turquoise); border-radius: 14px; padding: 8px 16px; font-family: inherit; text-align: left; }
+  button.j-chip { cursor: pointer; transition: background 0.15s, box-shadow 0.15s; }
+  button.j-chip:hover { background: rgba(0,195,216,0.12); box-shadow: 0 3px 10px rgba(0,0,0,0.10); }
   .j-chip .j-loc { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.9rem; color: var(--turquoise); }
   .j-chip .j-meta { font-size: 0.74rem; color: var(--graphite); }
   .j-arrow { color: var(--gray); font-weight: 800; font-size: 1.1rem; }
@@ -810,10 +812,12 @@ function journeyHTML(name){
   const steps = stints.map(s => {
     const span = spanText(s);
     const meta = [span, s.role].filter(Boolean).join(" · ");
-    return `<div class="j-chip">
-      <span class="j-loc">${s.location ? esc(s.location) : "Location unknown"}</span>
-      ${meta ? `<span class="j-meta">${esc(meta)}</span>` : ""}
-    </div>`;
+    const inner = `<span class="j-loc">${s.location ? esc(s.location) : "Location unknown"}</span>
+      ${meta ? `<span class="j-meta">${esc(meta)}</span>` : ""}`;
+    // Chips with a known location are buttons that jump to that location's page
+    return s.location
+      ? `<button class="j-chip" data-location="${esc(s.location)}">${inner}</button>`
+      : `<div class="j-chip">${inner}</div>`;
   }).join('<span class="j-arrow">→</span>');
   return `<div class="section-label">Service journey</div><div class="journey">${steps}</div>`;
 }
