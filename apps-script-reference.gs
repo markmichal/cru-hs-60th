@@ -161,9 +161,9 @@ function callLlmParse(notes){
   const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
   if(!key) throw new Error("ANTHROPIC_API_KEY is not set in Script Properties (see SETUP).");
 
-  // Model: Claude Opus 4.8 (most capable). To cut cost on this simple
-  // extraction task, you may change this to "claude-haiku-4-5".
-  const MODEL = "claude-opus-4-8";
+  // Model: Claude Haiku 4.5 — fast and low-cost, plenty for this simple
+  // extraction task. For higher quality you could use "claude-opus-4-8".
+  const MODEL = "claude-haiku-4-5";
 
   const payload = {
     model: MODEL,
