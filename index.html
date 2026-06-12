@@ -644,7 +644,9 @@ function rowsToItems(json){
     year: parseInt(val(r,I.year)) || null,
     location: String(val(r,I.loc)),
     people: String(val(r,I.people)),
-    type: String(val(r,I.type)) || "Photo",
+    // Explicit Type wins; otherwise a row with a recognizable video link is a
+    // Video (so Google Form uploads tag correctly without a Type column), else Photo.
+    type: String(val(r,I.type)) || (videoInfo(String(val(r,I.video))) ? "Video" : "Photo"),
     story: String(val(r,I.story)),
     photo: String(val(r,I.photo)),
     video: String(val(r,I.video)),
