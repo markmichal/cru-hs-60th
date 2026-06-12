@@ -89,10 +89,11 @@
 <div id="appWrap" class="locked">
 <header>
   <div class="badge-60">60</div>
-  <div>
+  <div style="flex:1">
     <h1>Staff Service Intake</h1>
     <div class="sub">Cru High School · 60th Anniversary</div>
   </div>
+  <button class="btn ghost" id="lockBtn" style="padding:9px 16px; font-size:.84rem">Log out</button>
 </header>
 
 <main>
@@ -171,6 +172,14 @@ function tryPin(){
 $("pinBtn").addEventListener("click", tryPin);
 $("pinInput").addEventListener("keydown", e => { if(e.key==="Enter") tryPin(); });
 if(sessionStorage.getItem("intakeUnlocked") === "1") unlock();
+
+$("lockBtn").addEventListener("click", () => {
+  sessionStorage.removeItem("intakeUnlocked");
+  $("pinInput").value = "";
+  $("pinMsg").style.display = "none";
+  $("appWrap").classList.add("locked");
+  $("gate").classList.remove("hidden");
+});
 
 /* ---------- POST helper (text/plain avoids a CORS preflight) ---------- */
 async function postAction(payload){
