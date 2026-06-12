@@ -6,7 +6,7 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 
 - **index.html** — the entire site. No build step. Deployed via GitHub Pages from `main` branch root. Live at https://markmichal.github.io/cru-hs-60th/
 - **Data source:** Google Sheet ID `1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE`, read client-side via the gviz JSON endpoint. The sheet is shared "Anyone with link → Viewer."
-  - Tab `Cru HS 60th Anniversary Timeline (master)` — curated timeline content (16 seed milestones). NEVER rename this tab without updating CONFIG.MASTER_TAB.
+  - Tab `Cru HS 60th Anniversary Timeline (master)` — curated timeline content (16 seed milestones — placeholder history the team will replace with the real 1967–2027 timeline). NEVER rename this tab without updating CONFIG.MASTER_TAB.
   - Tab `Form Responses 2` — public submissions from the linked Google Form. Note: this is the FIRST tab in the spreadsheet (Google inserts form tabs leftmost), which is why the site targets tabs by name, never by position.
   - Tab `Site Settings` — key/value pairs for editable page text (written by the hidden editor).
 - **Moderation:** only rows with the `Approved` checkbox checked appear on the site. `On Timeline` checkbox additionally surfaces an item on the timeline strip (gallery shows everything approved).
@@ -33,6 +33,14 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 - Edit index.html → commit → push to `main` → GitHub Pages auto-rebuilds in ~1–2 min. No other deploy step.
 - Content changes need no code: edit the spreadsheet, check Approved, refresh the site.
 - The Apps Script source also lives in this repo as reference (`Code.gs` if present), but the live copy runs inside the Google Sheet (Extensions → Apps Script). Changing the live script requires re-deploying the Web App (Manage deployments → new version).
+
+## Staff Service & Locations (next feature — see FEATURE-staff-locations.md)
+
+A new tab `Staff Service` records where staff served, one row per STINT (one person, one place, one time span). Columns: `Person Name | Location | Start Year | End Year | Role | Notes | Approved | Submitted By | Submitted At` (last two are internal provenance from the intake page — never displayed on the site). A person with three cities = three rows. The site aggregates: rows grouped by Person Name = that person's journey in chronological order; grouped by Location = that location's staff roster across eras. Years are stored as facts; eras are derived for display (decades now, CONFIG.ERAS later), same as the timeline. All fields except Person Name are optional — data will always be incomplete and that's fine; render what exists. Name consistency is enforced by human reviewers before approving rows, not by the system. Only Approved=TRUE rows appear on the site.
+
+Person profiles should merge BOTH data sources: service journey (Staff Service tab) + items they're tagged in (People column of content tabs). A Locations view lists location cards (year span, people count, item count) linking to location pages that show the staff roster by era plus gallery items with a matching Location.
+
+Planned phase 2: an intake page (PIN-gated like the editor) where information gatherers paste freeform notes; the page POSTs to the Apps Script, which calls an LLM API (key in Script Properties, never client-side) to parse notes into stint rows, returns them for preview/correction, then appends with Approved=FALSE.
 
 ## Owner context
 
