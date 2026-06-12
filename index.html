@@ -197,6 +197,36 @@
   .profile-head .trail b { color: var(--turquoise); font-weight: 600; }
   .back-link { background: none; border: none; color: var(--turquoise); font-weight: 600; font-size: 0.85rem; padding: 18px 0 0; }
 
+  /* ============ SERVICE JOURNEY (person profile) ============ */
+  .section-label { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--turquoise); margin: 24px 0 10px; }
+  .journey { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .j-chip { display: inline-flex; flex-direction: column; gap: 1px; background: var(--white); border: 1px solid var(--turquoise); border-radius: 14px; padding: 8px 16px; }
+  .j-chip .j-loc { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.9rem; color: var(--turquoise); }
+  .j-chip .j-meta { font-size: 0.74rem; color: var(--graphite); }
+  .j-arrow { color: var(--gray); font-weight: 800; font-size: 1.1rem; }
+
+  /* ============ LOCATIONS ============ */
+  .loc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; padding-top: 24px; }
+  .loc-card {
+    background: var(--card); border: 1px solid var(--card-border); border-radius: 4px; padding: 20px;
+    cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; text-align: left;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .loc-card:hover { border-color: var(--turquoise); box-shadow: 0 6px 18px rgba(0,0,0,0.10); }
+  .loc-card .loc-pin { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.1rem; color: var(--black); line-height: 1.2; }
+  .loc-card .loc-span { color: var(--turquoise); font-weight: 700; font-size: 0.82rem; margin-top: 4px; }
+  .loc-card .loc-stats { color: var(--graphite); font-size: 0.78rem; margin-top: 8px; }
+  .loc-era-block { padding-top: 18px; }
+  .loc-era-block h4 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.15rem; color: var(--black); border-bottom: 2px solid var(--yellow); display: inline-block; padding-bottom: 2px; margin-bottom: 12px; }
+  .roster { display: flex; flex-wrap: wrap; gap: 10px; }
+  .roster-person {
+    background: var(--white); border: 1px solid var(--gray); border-radius: 4px; padding: 10px 14px; text-align: left;
+    transition: border-color 0.15s; cursor: pointer; min-width: 160px;
+  }
+  .roster-person:hover { border-color: var(--turquoise); }
+  .roster-person .rp-name { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.9rem; color: var(--black); }
+  .roster-person .rp-meta { font-size: 0.76rem; color: var(--graphite); margin-top: 2px; }
+
   /* ============ MODALS ============ */
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 500; align-items: center; justify-content: center; padding: 24px; }
   .modal-overlay.open { display: flex; }
@@ -269,6 +299,7 @@
     <button class="nav-btn active" data-view="timeline" data-set="navTimeline">Timeline</button>
     <button class="nav-btn" data-view="gallery" data-set="navGallery">Gallery</button>
     <button class="nav-btn" data-view="people" data-set="navPeople">People</button>
+    <button class="nav-btn" data-view="locations" data-set="navLocations">Locations</button>
     <button class="nav-btn submit-cta" id="submitBtn" data-set="submitLabel">Share Your Story</button>
   </nav>
 </header>
@@ -324,7 +355,32 @@
           <div class="trail" id="profileTrail"></div>
         </div>
       </div>
-      <div class="grid" id="profileGrid" style="padding-top:18px"></div>
+      <div id="profileJourney"></div>
+      <div id="profileItemsLabel" class="section-label" style="display:none">Photos &amp; stories</div>
+      <div class="grid" id="profileGrid" style="padding-top:4px"></div>
+    </div>
+  </section>
+
+  <!-- LOCATIONS VIEW -->
+  <section class="view" id="view-locations">
+    <div id="locationsIndex">
+      <div class="loc-grid" id="locationsGrid"></div>
+      <div class="empty-state" id="locationsEmpty" style="display:none">
+        <div class="big">No locations yet</div>
+        <div>Locations appear here once staff service records or tagged photos include a place.</div>
+      </div>
+    </div>
+    <div id="locationDetail" style="display:none">
+      <button class="back-link" id="backToLocations">&larr; All locations</button>
+      <div class="profile-head">
+        <div>
+          <h3 id="locName"></h3>
+          <div class="trail" id="locTrail"></div>
+        </div>
+      </div>
+      <div id="locRoster"></div>
+      <div id="locItemsLabel" class="section-label" style="display:none">Photos &amp; stories from here</div>
+      <div class="grid" id="locGrid" style="padding-top:4px"></div>
     </div>
   </section>
 </main>
@@ -395,6 +451,8 @@ const CONFIG = {
   FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform",
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
   EDIT_PIN: "6060",
+  INTAKE_PIN: "1951",
+  STAFF_TAB: "Staff Service",
   ERAS: [],
   MAX_TRACK: 20
 };
@@ -410,6 +468,7 @@ const SETTINGS_SCHEMA = [
   { key:"navTimeline",    label:"Tab 1 label" },
   { key:"navGallery",     label:"Tab 2 label" },
   { key:"navPeople",      label:"Tab 3 label" },
+  { key:"navLocations",   label:"Tab 4 label" },
   { section: "Hero (top of page)" },
   { key:"heroHeading",    label:"Big headline", type:"textarea" },
   { key:"heroHighlight",  label:"Highlighted words (shown in yellow)" },
@@ -429,6 +488,7 @@ const SETTINGS_SCHEMA = [
 
 /* ============ STATE ============ */
 let DATA = [];
+let STINTS = [];            // staff-service rows (one per person/place/timespan)
 let SETTINGS = {};          // values loaded from the Site Settings tab
 let filters = { search:"", era:"", location:"", person:"", type:"" };
 let currentEra = null;
@@ -458,6 +518,39 @@ function driveImg(url){
   if(!url) return "";
   const m = String(url).match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
   return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200` : url;
+}
+
+/* ============ STAFF SERVICE HELPERS ============ */
+// Render a year span from a stint without ever printing undefined/NaN.
+function spanText(s){
+  const a = s.startYear || "", b = s.endYear || "";
+  if(a && b) return a === b ? `${a}` : `${a}–${b}`;
+  if(a) return `${a}–`;          // started, end unknown / still serving
+  if(b) return `–${b}`;          // only an end year recorded
+  return "";                       // no years at all
+}
+function stintsForPerson(name){
+  return STINTS.filter(s => s.person === name)
+    .sort((a,b) => (a.startYear || 9999) - (b.startYear || 9999));
+}
+function stintPeople(){
+  return [...new Set(STINTS.map(s => s.person).filter(Boolean))];
+}
+// All location names from BOTH stints and content items, keyed by exact trimmed string.
+function locationNames(){
+  const set = new Set();
+  STINTS.forEach(s => { if(s.location) set.add(s.location); });
+  DATA.forEach(d => { if(d.location) set.add(d.location.trim()); });
+  return [...set].sort();
+}
+function locationData(name){
+  const stints = STINTS.filter(s => s.location === name);
+  const items = DATA.filter(d => (d.location || "").trim() === name);
+  const people = [...new Set(stints.map(s => s.person).filter(Boolean))];
+  const years = [];
+  stints.forEach(s => { if(s.startYear) years.push(s.startYear); if(s.endYear) years.push(s.endYear); });
+  items.forEach(d => { if(d.year) years.push(d.year); });
+  return { stints, items, people, years };
 }
 
 const formUrl = () => SETTINGS.formUrl || CONFIG.FORM_URL;
@@ -555,9 +648,37 @@ async function loadData(){
     }
   }catch(e){ /* no settings tab yet — defaults apply */ }
 
+  // Staff Service tab (one row per stint). Tolerate it not existing yet.
+  try{
+    const txt4 = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.STAFF_TAB)}`)).text();
+    const json4 = parseGviz(txt4);
+    if(json4.table) STINTS = rowsToStints(json4);
+  }catch(e){ STINTS = []; /* no staff tab yet — fine */ }
+
   DATA = items;
   $("dataStatus").textContent = `Live from Google Sheets — ${DATA.length} approved item${DATA.length===1?"":"s"}`;
   $("dataStatus").classList.add("live");
+}
+
+/* Parse the Staff Service tab. Approved=TRUE + non-empty Person Name only.
+   "Submitted By"/"Submitted At" are deliberately NOT read — internal provenance. */
+function rowsToStints(json){
+  const cols = json.table.cols.map(c => (c.label||"").toLowerCase().trim());
+  const idx = name => cols.findIndex(c => c.includes(name));
+  const I = {
+    person:idx("person"), loc:idx("location"), start:idx("start"),
+    end:idx("end"), role:idx("role"), notes:idx("notes"), approved:idx("approved")
+  };
+  const val = (row,i) => (i>=0 && row.c && row.c[i]) ? (row.c[i].v ?? "") : "";
+  return json.table.rows.map(r => ({
+    person: String(val(r,I.person)).trim(),
+    location: String(val(r,I.loc)).trim(),
+    startYear: parseInt(val(r,I.start)) || null,
+    endYear: parseInt(val(r,I.end)) || null,
+    role: String(val(r,I.role)).trim(),
+    notes: String(val(r,I.notes)).trim(),
+    approved: val(r,I.approved) === true || String(val(r,I.approved)).toUpperCase() === "TRUE"
+  })).filter(s => s.person && s.approved);
 }
 
 /* ============ RENDER: TIMELINE ============ */
@@ -657,34 +778,136 @@ function buildFilterOptions(){
 /* ============ RENDER: PEOPLE ============ */
 function renderPeople(){
   const map = {};
+  // tagged in content items
   DATA.forEach(d => peopleList(d).forEach(p => {
     if(!map[p]) map[p] = { items:0, locs:new Set() };
     map[p].items++;
-    if(d.location) map[p].locs.add(d.location);
+    if(d.location) map[p].locs.add(d.location.trim());
   }));
+  // present in the Staff Service tab (may have no tagged photos)
+  STINTS.forEach(s => {
+    if(!map[s.person]) map[s.person] = { items:0, locs:new Set() };
+    if(s.location) map[s.person].locs.add(s.location);
+  });
   const names = Object.keys(map).sort();
-  $("peopleGrid").innerHTML = names.length ? names.map(n => `
+  $("peopleGrid").innerHTML = names.length ? names.map(n => {
+    const m = map[n];
+    const bits = [];
+    if(m.items) bits.push(`${m.items} item${m.items===1?"":"s"}`);
+    if(m.locs.size) bits.push(`${m.locs.size} location${m.locs.size===1?"":"s"}`);
+    return `
     <button class="p-card" data-person="${esc(n)}">
       <div class="avatar">${initials(n)}</div>
       <h4>${esc(n)}</h4>
-      <div class="p-stats">${map[n].items} item${map[n].items===1?"":"s"}${map[n].locs.size?` · ${map[n].locs.size} location${map[n].locs.size===1?"":"s"}`:""}</div>
-    </button>`).join("")
-    : `<div class="empty-state"><div class="big">No tagged people yet</div><div>People appear here once submissions include names.</div></div>`;
+      <div class="p-stats">${bits.join(" · ") || "Profile"}</div>
+    </button>`; }).join("")
+    : `<div class="empty-state"><div class="big">No people yet</div><div>People appear here once submissions include names or staff service records are added.</div></div>`;
+}
+
+function journeyHTML(name){
+  const stints = stintsForPerson(name);
+  if(!stints.length) return "";
+  const steps = stints.map(s => {
+    const span = spanText(s);
+    const meta = [span, s.role].filter(Boolean).join(" · ");
+    return `<div class="j-chip">
+      <span class="j-loc">${s.location ? esc(s.location) : "Location unknown"}</span>
+      ${meta ? `<span class="j-meta">${esc(meta)}</span>` : ""}
+    </div>`;
+  }).join('<span class="j-arrow">→</span>');
+  return `<div class="section-label">Service journey</div><div class="journey">${steps}</div>`;
 }
 
 function showProfile(name){
   const items = DATA.filter(d => peopleList(d).includes(name)).sort((a,b)=>(a.year||0)-(b.year||0));
-  const locs = [...new Set(items.map(i=>i.location).filter(Boolean))];
-  const years = items.map(i=>i.year).filter(Boolean);
+  const stints = stintsForPerson(name);
+  const locs = [...new Set([
+    ...stints.map(s=>s.location).filter(Boolean),
+    ...items.map(i=>(i.location||"").trim()).filter(Boolean)
+  ])];
+  const years = [
+    ...items.map(i=>i.year).filter(Boolean),
+    ...stints.flatMap(s=>[s.startYear,s.endYear]).filter(Boolean)
+  ];
   $("profileAvatar").textContent = initials(name);
   $("profileName").textContent = name;
   $("profileTrail").innerHTML =
-    (years.length ? `<b>${Math.min(...years)} – ${Math.max(...years)}</b> · ` : "") +
-    (locs.length ? `Seen in: <b>${esc(locs.join(" → "))}</b>` : "No locations recorded yet");
+    (years.length ? `<b>${Math.min(...years)} – ${Math.max(...years)}</b>` : "") +
+    (years.length && locs.length ? " · " : "") +
+    (locs.length ? `<b>${esc(locs.join(" → "))}</b>` : (years.length ? "" : "Profile"));
+  $("profileJourney").innerHTML = journeyHTML(name);
+  $("profileItemsLabel").style.display = items.length ? "block" : "none";
   $("profileGrid").innerHTML = items.map(cardHTML).join("");
   $("peopleIndex").style.display = "none";
   $("personProfile").style.display = "block";
   switchView("people");
+}
+
+/* ============ RENDER: LOCATIONS ============ */
+function renderLocations(){
+  const names = locationNames();
+  if(!names.length){
+    $("locationsGrid").innerHTML = "";
+    $("locationsEmpty").style.display = "block";
+    return;
+  }
+  $("locationsEmpty").style.display = "none";
+  $("locationsGrid").innerHTML = names.map(n => {
+    const d = locationData(n);
+    const span = d.years.length ? (Math.min(...d.years) === Math.max(...d.years)
+        ? `${Math.min(...d.years)}` : `${Math.min(...d.years)}–${Math.max(...d.years)}`) : "";
+    const stats = [];
+    if(d.people.length) stats.push(`${d.people.length} ${d.people.length===1?"person":"people"}`);
+    if(d.items.length) stats.push(`${d.items.length} item${d.items.length===1?"":"s"}`);
+    return `<button class="loc-card" data-location="${esc(n)}">
+      <div class="loc-pin">📍 ${esc(n)}</div>
+      ${span ? `<div class="loc-span">${span}</div>` : ""}
+      <div class="loc-stats">${stats.join(" · ") || "No records yet"}</div>
+    </button>`;
+  }).join("");
+}
+
+function showLocation(name){
+  const d = locationData(name);
+  $("locName").textContent = name;
+  const span = d.years.length ? `${Math.min(...d.years)} – ${Math.max(...d.years)} · ` : "";
+  $("locTrail").innerHTML = span +
+    `${d.people.length} ${d.people.length===1?"person":"people"} · ${d.items.length} item${d.items.length===1?"":"s"}`;
+
+  // Staff roster grouped by era (derived from each stint's start year)
+  if(d.stints.length){
+    const byEra = {};
+    d.stints.forEach(s => {
+      const era = eraOf(s.startYear) || "Year unknown";
+      (byEra[era] = byEra[era] || []).push(s);
+    });
+    const eraKeys = Object.keys(byEra).sort((a,b)=>{
+      if(a === "Year unknown") return 1;
+      if(b === "Year unknown") return -1;
+      return a.localeCompare(b);
+    });
+    $("locRoster").innerHTML = eraKeys.map(era => `
+      <div class="loc-era-block">
+        <h4>${esc(era)}</h4>
+        <div class="roster">${byEra[era]
+          .sort((a,b)=>(a.startYear||9999)-(b.startYear||9999))
+          .map(s => {
+            const meta = [spanText(s), s.role].filter(Boolean).join(" · ");
+            return `<button class="roster-person" data-person="${esc(s.person)}">
+              <div class="rp-name">${esc(s.person)}</div>
+              ${meta ? `<div class="rp-meta">${esc(meta)}</div>` : ""}
+            </button>`;
+          }).join("")}</div>
+      </div>`).join("");
+  } else {
+    $("locRoster").innerHTML = `<div class="loc-era-block"><div class="rp-meta" style="color:var(--graphite)">No staff service records here yet.</div></div>`;
+  }
+
+  $("locItemsLabel").style.display = d.items.length ? "block" : "none";
+  $("locGrid").innerHTML = d.items.map(cardHTML).join("");
+  $("locationsIndex").style.display = "none";
+  $("locationDetail").style.display = "block";
+  switchView("locations");
 }
 
 /* ============ DETAIL MODAL ============ */
@@ -772,6 +995,7 @@ function renderAll(){
   buildFilterOptions();
   renderGallery();
   renderPeople();
+  renderLocations();
 }
 
 /* ============ EVENTS ============ */
@@ -787,7 +1011,12 @@ document.addEventListener("click", e => {
   }
 
   const nav = e.target.closest(".nav-btn[data-view]");
-  if(nav){ switchView(nav.dataset.view); if(nav.dataset.view==="people"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; } return; }
+  if(nav){
+    switchView(nav.dataset.view);
+    if(nav.dataset.view==="people"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; }
+    if(nav.dataset.view==="locations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; }
+    return;
+  }
 
   const eraTab = e.target.closest(".era-tab");
   if(eraTab){
@@ -799,6 +1028,9 @@ document.addEventListener("click", e => {
 
   const pill = e.target.closest("[data-person]");
   if(pill){ e.stopPropagation(); showProfile(pill.dataset.person); return; }
+
+  const locCard = e.target.closest("[data-location]");
+  if(locCard){ showLocation(locCard.dataset.location); return; }
 
   const card = e.target.closest("[data-key]");
   if(card){ openModal(parseInt(card.dataset.key)); return; }
@@ -818,6 +1050,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "backToPeople"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; return; }
+  if(e.target.id === "backToLocations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; return; }
   if(e.target.dataset.close){ $(e.target.dataset.close).classList.remove("open"); return; }
   if(e.target.id === "modalOverlay"){ $("modalOverlay").classList.remove("open"); return; }
   if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
