@@ -649,9 +649,10 @@ function rowsToItems(json){
     year: parseInt(val(r,I.year)) || null,
     location: String(val(r,I.loc)),
     people: String(val(r,I.people)),
-    // Explicit Type wins; otherwise a row with a recognizable video link is a
-    // Video (so Google Form uploads tag correctly without a Type column), else Photo.
-    type: String(val(r,I.type)) || (videoInfo(String(videoVal(r))) ? "Video" : "Photo"),
+    // A recognizable video link ALWAYS labels the row "Video" (the modal shows a
+    // player for it regardless), so a submitter's Type pick can't mislabel it.
+    // Otherwise use the explicit Type, defaulting to Photo.
+    type: videoInfo(String(videoVal(r))) ? "Video" : (String(val(r,I.type)) || "Photo"),
     story: String(val(r,I.story)),
     photo: String(val(r,I.photo)),
     video: String(videoVal(r)),
