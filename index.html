@@ -109,6 +109,8 @@
   .timeline-wrap.dragging { cursor: grabbing; }
   .timeline-track { display: flex; position: relative; padding: 40px 60px; min-width: max-content; }
   .timeline-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; background: var(--yellow); border-radius: 2px; }
+  /* axis baseline along the very bottom of the timeline */
+  .timeline-track::after { content: ''; position: absolute; left: 60px; right: 60px; bottom: 30px; height: 2px; background: var(--gray); border-radius: 2px; }
   .t-event { position: relative; width: 250px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
   .t-event .dot {
     position: absolute; top: 50%; transform: translateY(-50%);
@@ -129,6 +131,12 @@
   .t-card h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; margin: 4px 0 6px; line-height: 1.25; color: var(--black); }
   .t-card p { font-size: 0.8rem; color: var(--graphite); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .t-card .t-thumb { width: 100%; height: 90px; object-fit: cover; border-radius: 3px; margin-bottom: 8px; }
+  /* year marker + tick at the bottom of each card's column */
+  .t-tick { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 1; }
+  .t-tick::before { content: ''; width: 2px; height: 12px; background: var(--gray); border-radius: 1px; }
+  .t-tick span { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.82rem; color: var(--graphite); background: var(--soft); padding: 0 4px; }
+  .t-event.milestone .t-tick::before { background: var(--orange); height: 16px; }
+  .t-event.milestone .t-tick span { color: var(--vermilion); }
   .timeline-hint { text-align: center; color: var(--graphite); font-size: 0.8rem; padding-top: 10px; }
 
   .item-btn {
@@ -706,6 +714,7 @@ function renderTimeline(){
         ${e.story ? `<p>${esc(e.story)}</p>` : ""}
       </div>
       <div class="dot"></div>
+      ${e.year ? `<div class="t-tick"><span>${e.year}</span></div>` : ""}
     </div>`).join("");
 
   const eras = eraList();
