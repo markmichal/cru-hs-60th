@@ -34,7 +34,8 @@
     border-bottom: 3px solid var(--yellow);
     padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
   }
-  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand { display: flex; align-items: center; gap: 14px; cursor: pointer; }
+  .brand:hover .badge-60 { box-shadow: 0 0 0 3px var(--lemon); }
   .badge-60 {
     width: 52px; height: 52px; border-radius: 50%; background: var(--yellow); color: var(--black);
     display: flex; align-items: center; justify-content: center;
@@ -1020,6 +1021,17 @@ document.addEventListener("click", e => {
     const input = document.querySelector(`[data-skey="${el.dataset.set}"]`);
     if(input) setTimeout(() => input.focus(), 50);
     e.preventDefault();
+    return;
+  }
+
+  // Brand corner acts as a "home" button → timeline overview (skip in edit mode,
+  // where clicking the title text opens the settings editor instead)
+  if(!editing && e.target.closest(".brand")){
+    currentEra = null;
+    renderTimeline();
+    $("timelineWrap").scrollLeft = 0;
+    switchView("timeline");
+    window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
 
