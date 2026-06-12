@@ -212,7 +212,7 @@ $("parseBtn").addEventListener("click", async () => {
 });
 
 function friendly(m){
-  if(/api key|GEMINI/i.test(m)) return "The AI key isn't set up yet on the spreadsheet side. Ask Mark to add the GEMINI_API_KEY (see the setup notes).";
+  if(/api key|ANTHROPIC|GEMINI/i.test(m)) return "The AI key isn't set up yet on the spreadsheet side. Ask Mark to add the ANTHROPIC_API_KEY (see the setup notes).";
   return "Something went wrong: " + m;
 }
 

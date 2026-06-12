@@ -10,9 +10,13 @@
  * --------------------------------------------------------------------------
  * SETUP — do this once (≈5 minutes). Plain-language steps:
  *
- * A) GET A FREE AI KEY
- *    1. Go to https://aistudio.google.com  → sign in → "Get API key" →
- *       "Create API key". Copy the long key it gives you.
+ * A) GET AN ANTHROPIC (CLAUDE) API KEY
+ *    1. Go to https://platform.claude.com  → sign in → "API keys" →
+ *       "Create Key". Copy the key it gives you (starts with "sk-ant-").
+ *       (This uses Claude instead of Gemini — the new Google "AQ." keys have
+ *       no free quota on the Gemini endpoint, so Claude is the reliable path.)
+ *       Note: Claude's API is pay-as-you-go. Parsing a note costs a fraction
+ *       of a cent; add a small amount of credit at console billing if asked.
  *
  * B) PASTE THIS SCRIPT IN
  *    2. In the Google Sheet: Extensions → Apps Script.
@@ -22,7 +26,7 @@
  * C) STORE THE KEY SAFELY (never put it in the website or this file)
  *    4. In the Apps Script editor: click the gear "Project Settings" (left side).
  *    5. Scroll to "Script Properties" → "Add script property".
- *    6. Property name:  GEMINI_API_KEY
+ *    6. Property name:  ANTHROPIC_API_KEY
  *       Value:          (paste the key from step 1)
  *       Click "Save script properties".
  *
@@ -147,45 +151,64 @@ function handleAddStints(body){
 }
 
 /* ===================== LLM PROVIDER (swappable) =====================
- * Everything provider-specific lives in this one function. To switch from
- * Gemini to Anthropic later, replace the body of callLlmParse() only.
+ * Everything provider-specific lives in this one function. This calls
+ * Anthropic's Claude Messages API (raw HTTPS — Apps Script has no SDK) and
+ * uses structured outputs so the model returns strict JSON we can parse.
+ * To swap providers later, replace the body of callLlmParse() only.
  * Returns an array of { personName, location, startYear, endYear, role, notes }.
  */
 function callLlmParse(notes){
-  const key = PropertiesService.getScriptProperties().getProperty("GEMINI_API_KEY");
-  if(!key) throw new Error("GEMINI_API_KEY is not set in Script Properties (see SETUP).");
+  const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
+  if(!key) throw new Error("ANTHROPIC_API_KEY is not set in Script Properties (see SETUP).");
 
-  const model = "gemini-2.0-flash";       // free-tier friendly; fast
-  const url = "https://generativelanguage.googleapis.com/v1beta/models/"
-            + model + ":generateContent?key=" + encodeURIComponent(key);
+  // Model: Claude Opus 4.8 (most capable). To cut cost on this simple
+  // extraction task, you may change this to "claude-haiku-4-5".
+  const MODEL = "claude-opus-4-8";
 
   const payload = {
-    systemInstruction: { parts: [{ text: PARSER_PROMPT }] },
-    contents: [{ role: "user", parts: [{ text: "NOTES:\n" + notes }] }],
-    generationConfig: {
-      temperature: 0,
-      response_mime_type: "application/json",
-      response_schema: {
-        type: "ARRAY",
-        items: {
-          type: "OBJECT",
+    model: MODEL,
+    max_tokens: 4096,
+    thinking: { type: "disabled" },        // simple extraction — no need to think
+    system: PARSER_PROMPT,
+    // Structured outputs: force a strict JSON object { stints: [ ... ] }.
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
           properties: {
-            personName: { type: "STRING" },
-            location:   { type: "STRING" },
-            startYear:  { type: "STRING" },
-            endYear:    { type: "STRING" },
-            role:       { type: "STRING" },
-            notes:      { type: "STRING" }
+            stints: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  personName: { type: "string" },
+                  location:   { type: "string" },
+                  startYear:  { type: "string" },
+                  endYear:    { type: "string" },
+                  role:       { type: "string" },
+                  notes:      { type: "string" }
+                },
+                required: ["personName","location","startYear","endYear","role","notes"],
+                additionalProperties: false
+              }
+            }
           },
-          required: ["personName"]
+          required: ["stints"],
+          additionalProperties: false
         }
       }
-    }
+    },
+    messages: [{ role: "user", content: "NOTES:\n" + notes }]
   };
 
-  const res = UrlFetchApp.fetch(url, {
+  const res = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", {
     method: "post",
     contentType: "application/json",
+    headers: {
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01"
+    },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   });
@@ -196,13 +219,13 @@ function callLlmParse(notes){
   }
   let data;
   try { data = JSON.parse(text); } catch(e){ throw new Error("AI returned an unreadable response."); }
-  const out = data && data.candidates && data.candidates[0] &&
-              data.candidates[0].content && data.candidates[0].content.parts &&
-              data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text;
-  if(!out) throw new Error("AI returned no content.");
+  // Claude returns content as an array of blocks; the JSON lives in the text block.
+  const block = (data.content || []).find(function(b){ return b.type === "text" && b.text; });
+  if(!block) throw new Error("AI returned no content.");
 
-  let arr;
-  try { arr = JSON.parse(out); } catch(e){ throw new Error("AI did not return valid rows."); }
+  let parsed;
+  try { parsed = JSON.parse(block.text); } catch(e){ throw new Error("AI did not return valid rows."); }
+  let arr = Array.isArray(parsed) ? parsed : (parsed && parsed.stints) || [];
   if(!Array.isArray(arr)) arr = [];
 
   // Normalize: years to clean 4-digit numbers (or blank); strings trimmed.
