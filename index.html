@@ -632,13 +632,18 @@ function parseGviz(txt){
 function rowsToItems(json){
   const cols = json.table.cols.map(c => (c.label||"").toLowerCase().trim());
   const idx = name => cols.findIndex(c => c.includes(name));
+  // There may be MORE THAN ONE video column (e.g. a "paste a link" question AND
+  // an "upload a clip" question on the form) — collect them all.
+  const videoCols = cols.map((c,i) => c.includes("video") ? i : -1).filter(i => i >= 0);
   const I = {
     title:idx("title"), year:idx("year"), loc:idx("location"), people:idx("people"),
-    type:idx("type"), story:idx("story"), photo:idx("photo"), video:idx("video"),
+    type:idx("type"), story:idx("story"), photo:idx("photo"),
     bl:idx("button label"), bu:idx("button url"),
     approved:idx("approved"), tl:idx("timeline")
   };
   const val = (row,i) => (i>=0 && row.c && row.c[i]) ? (row.c[i].v ?? "") : "";
+  // First non-empty value across any of the video columns
+  const videoVal = row => { for(const i of videoCols){ const v = val(row,i); if(v) return v; } return ""; };
   return json.table.rows.map(r => ({
     title: String(val(r,I.title)),
     year: parseInt(val(r,I.year)) || null,
@@ -646,10 +651,10 @@ function rowsToItems(json){
     people: String(val(r,I.people)),
     // Explicit Type wins; otherwise a row with a recognizable video link is a
     // Video (so Google Form uploads tag correctly without a Type column), else Photo.
-    type: String(val(r,I.type)) || (videoInfo(String(val(r,I.video))) ? "Video" : "Photo"),
+    type: String(val(r,I.type)) || (videoInfo(String(videoVal(r))) ? "Video" : "Photo"),
     story: String(val(r,I.story)),
     photo: String(val(r,I.photo)),
-    video: String(val(r,I.video)),
+    video: String(videoVal(r)),
     buttonLabel: String(val(r,I.bl)),
     buttonUrl: String(val(r,I.bu)),
     approved: val(r,I.approved) === true || String(val(r,I.approved)).toUpperCase() === "TRUE",
