@@ -282,6 +282,15 @@
   footer p { color: var(--gray); max-width: 480px; margin: 10px auto 20px; font-size: 0.92rem; line-height: 1.6; }
   .footer-cta { display: inline-block; background: var(--yellow); color: var(--black); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1rem; padding: 14px 34px; border-radius: 3px; text-decoration: none; transition: background 0.15s; }
   .footer-cta:hover { background: var(--lemon); }
+  .footer-correction { margin-top: 30px; padding-top: 26px; border-top: 1px solid rgba(255,255,255,0.12); }
+  .footer-correction h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--white); }
+  .footer-correction p { color: var(--gray); max-width: 420px; margin: 6px auto 14px; font-size: 0.82rem; line-height: 1.5; }
+  .footer-correction-btn {
+    display: inline-block; background: transparent; color: var(--yellow);
+    border: 1px solid var(--yellow); border-radius: 3px; padding: 8px 20px;
+    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.82rem; text-decoration: none; transition: all 0.15s;
+  }
+  .footer-correction-btn:hover { background: var(--yellow); color: var(--black); }
   .footer-note { color: var(--graphite); font-size: 0.75rem; margin-top: 26px; }
 
   @media (max-width: 640px) {
@@ -410,6 +419,11 @@
   <h3 data-set="footerHeading">Were you part of the story?</h3>
   <p data-set="footerText">Old photos, camp flyers, retreat T-shirts, a moment that changed your life — we want it all. Submissions are reviewed by our team before appearing on the site.</p>
   <a class="footer-cta" href="#" id="footerSubmit" data-set="footerCtaLabel">Submit a Photo or Story</a>
+  <div class="footer-correction">
+    <h4 data-set="correctionHeading">See something to fix?</h4>
+    <p data-set="correctionText">Wrong date, misspelled name, or a photo in the wrong place? Tell us.</p>
+    <a class="footer-correction-btn" href="#" id="footerCorrection" data-set="correctionCtaLabel">Suggest a correction</a>
+  </div>
   <div class="footer-note" data-set="footerNote">Cru High School Ministry &middot; 60th Anniversary Project</div>
 </footer>
 
@@ -471,6 +485,7 @@ const CONFIG = {
   MASTER_TAB: "Cru HS 60th Anniversary Timeline (master)",
   FORM_TAB: "Form Responses 2",
   FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform",
+  CORRECTION_FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSd7Axq15m49v4jwQYCXCyPyc9KgMf-lC2sI99vLltlC1FyDmw/viewform",
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
   EDIT_PIN: "6060",
   INTAKE_PIN: "1951",
@@ -500,11 +515,15 @@ const SETTINGS_SCHEMA = [
   { key:"submitLabel",    label:"Header button text" },
   { key:"footerCtaLabel", label:"Footer button text" },
   { key:"formUrl",        label:"Where both submit buttons go (URL)" },
+  { key:"correctionCtaLabel", label:"Correction button text" },
+  { key:"correctionFormUrl",  label:"Where the correction button goes (URL)" },
   { section: "Timeline" },
   { key:"timelineHint",   label:"Hint line under the timeline" },
   { section: "Footer" },
   { key:"footerHeading",  label:"Footer heading" },
   { key:"footerText",     label:"Footer paragraph", type:"textarea" },
+  { key:"correctionHeading", label:"Correction heading" },
+  { key:"correctionText",    label:"Correction paragraph", type:"textarea" },
   { key:"footerNote",     label:"Small print at the bottom" }
 ];
 
@@ -596,6 +615,7 @@ function locationData(name){
 }
 
 const formUrl = () => SETTINGS.formUrl || CONFIG.FORM_URL;
+const correctionUrl = () => SETTINGS.correctionFormUrl || CONFIG.CORRECTION_FORM_URL;
 
 /* ============ SETTINGS: defaults, apply, load ============ */
 function settingDefaults(){
@@ -1024,6 +1044,7 @@ function openSettings(){
   $("settingsFields").innerHTML = SETTINGS_SCHEMA.map(f => {
     if(f.section) return `<div class="s-section">${esc(f.section)}</div>`;
     const v = f.key === "formUrl" ? (SETTINGS.formUrl || CONFIG.FORM_URL)
+            : f.key === "correctionFormUrl" ? (SETTINGS.correctionFormUrl || CONFIG.CORRECTION_FORM_URL)
             : f.key === "heroImage" ? (SETTINGS.heroImage || "")
             : settingValue(f.key);
     return `<div class="s-field">
@@ -1141,6 +1162,7 @@ document.addEventListener("click", e => {
   if(e.target.id === "modalOverlay"){ closeModal(); return; }
   if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
   if(e.target.id === "submitBtn" || e.target.id === "footerSubmit"){ e.preventDefault(); window.open(formUrl(), "_blank"); return; }
+  if(e.target.id === "footerCorrection"){ e.preventDefault(); window.open(correctionUrl(), "_blank"); return; }
   if(e.target.id === "editDot"){ editing ? exitEditMode() : enterEditMode(); return; }
   if(e.target.id === "exitEditBtn"){ exitEditMode(); return; }
   if(e.target.id === "openSettingsBtn"){ openSettings(); return; }
