@@ -524,7 +524,9 @@ const CONFIG = {
   INTAKE_PIN: "1951",
   STAFF_TAB: "Staff Service",
   ERAS: [],
-  MAX_TRACK: 20
+  MAX_TRACK: 20,
+  HERO_MAX: 7,        // max photos in the top slider (editable in the hidden editor)
+  HERO_SECONDS: 6     // seconds each slide shows before advancing
 };
 
 /* Editable page settings: key, label, type, where it appears.
@@ -543,7 +545,10 @@ const SETTINGS_SCHEMA = [
   { key:"heroHeading",    label:"Big headline", type:"textarea" },
   { key:"heroHighlight",  label:"Highlighted words (shown in yellow)" },
   { key:"heroText",       label:"Intro paragraph", type:"textarea" },
-  { key:"heroImage",      label:"Hero image URL (optional — Drive link works, blank = no image)" },
+  { key:"heroImage",      label:"Hero image URL (used only when no photos are tagged Featured)" },
+  { section: "Top photo slider" },
+  { key:"heroMax",        label:"Max photos in the slider (1–12)" },
+  { key:"heroSeconds",    label:"Seconds each photo shows (2–30)" },
   { section: "Buttons" },
   { key:"submitLabel",    label:"Header button text" },
   { key:"footerCtaLabel", label:"Footer button text" },
@@ -1083,6 +1088,8 @@ function openSettings(){
     const v = f.key === "formUrl" ? (SETTINGS.formUrl || CONFIG.FORM_URL)
             : f.key === "correctionFormUrl" ? (SETTINGS.correctionFormUrl || CONFIG.CORRECTION_FORM_URL)
             : f.key === "heroImage" ? (SETTINGS.heroImage || "")
+            : f.key === "heroMax" ? (SETTINGS.heroMax || CONFIG.HERO_MAX)
+            : f.key === "heroSeconds" ? (SETTINGS.heroSeconds || CONFIG.HERO_SECONDS)
             : settingValue(f.key);
     return `<div class="s-field">
       <label for="set-${f.key}">${esc(f.label)}</label>
@@ -1110,6 +1117,7 @@ async function saveSettings(){
     }
     Object.assign(SETTINGS, newSettings);
     applySettings();
+    renderHeroCarousel();   // reflect new slider count/speed immediately
     $("settingsOverlay").classList.remove("open");
   }catch(e){
     alert("Couldn't save: " + e.message + "\n\nCheck that SCRIPT_URL is deployed and the PIN matches the Apps Script.");
@@ -1133,11 +1141,15 @@ function renderAll(){
 }
 
 /* ============ HERO PHOTO CAROUSEL ============ */
-// Approved photos tagged "Featured" in the sheet, oldest first, capped at 7.
+const clampNum = (v, def, lo, hi) => { const n = parseFloat(v); return isNaN(n) ? def : Math.min(hi, Math.max(lo, n)); };
+const heroMax     = () => clampNum(SETTINGS.heroMax, CONFIG.HERO_MAX, 1, 12);
+const heroSeconds = () => clampNum(SETTINGS.heroSeconds, CONFIG.HERO_SECONDS, 2, 30);
+
+// Approved photos tagged "Featured" in the sheet, oldest first, capped at heroMax().
 function heroItems(){
   return DATA.filter(d => d.featured && d.photo)
     .sort((a,b) => (a.year||0) - (b.year||0))
-    .slice(0, 7);
+    .slice(0, heroMax());
 }
 function setHeroSlide(i){
   if(!HERO.length) return;
@@ -1155,7 +1167,7 @@ function setHeroSlide(i){
 function startHeroTimer(){
   clearInterval(heroTimer);
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if(HERO.length > 1 && !reduce) heroTimer = setInterval(() => setHeroSlide(heroIdx + 1), 5500);
+  if(HERO.length > 1 && !reduce) heroTimer = setInterval(() => setHeroSlide(heroIdx + 1), heroSeconds() * 1000);
 }
 function renderHeroCarousel(){
   HERO = heroItems();
