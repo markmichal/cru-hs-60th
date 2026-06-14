@@ -95,23 +95,29 @@
   .hero.carousel-on .hero-carousel { display: block; position: absolute; inset: 0; overflow: hidden; z-index: 0; }
   .hero-slide { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1s ease; }
   .hero-slide.active { opacity: 1; }
+  /* Darker scrim so the white centered text pops; extra shade bottom-right behind the caption */
   .hero.carousel-on .hero-carousel::after { content: ''; position: absolute; inset: 0; z-index: 1;
-    background: linear-gradient(180deg, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0.22) 38%, rgba(0,0,0,0.62) 100%); }
+    background:
+      radial-gradient(ellipse 60% 70% at 85% 100%, rgba(0,0,0,0.55), transparent 70%),
+      linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.78) 100%); }
   .hero.carousel-on .hero-inner {
-    position: relative; z-index: 2; padding: 88px 28px 64px;
-    min-height: 520px; display: flex; flex-direction: column; justify-content: center;
+    position: relative; z-index: 2; padding: 84px 28px 92px;
+    min-height: 540px; display: flex; flex-direction: column; justify-content: center;
   }
-  .hero.carousel-on h2 { color: var(--white); text-shadow: 0 2px 18px rgba(0,0,0,0.45); }
-  .hero.carousel-on p { color: rgba(255,255,255,0.92); text-shadow: 0 1px 12px rgba(0,0,0,0.5); }
+  .hero.carousel-on h2 { color: var(--white); text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
+  .hero.carousel-on p { color: rgba(255,255,255,0.94); text-shadow: 0 1px 12px rgba(0,0,0,0.6); }
   .hero.carousel-on .hero-image { display: none; }
+  /* Photo caption: pinned bottom-right, distinct from the centered site title */
   .hero-caption { display: none; }
-  .hero.carousel-on .hero-caption { display: block; margin-top: 20px; }
-  .hc-link { background: none; border: none; cursor: pointer; color: #fff; font-family: inherit; padding: 8px 14px; border-radius: 4px; display: inline-flex; flex-direction: column; gap: 2px; transition: background 0.15s; max-width: 600px; }
-  .hc-link:hover { background: rgba(255,255,255,0.14); }
-  .hc-link .hc-title { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; }
-  .hc-link .hc-blurb { font-size: 0.84rem; color: rgba(255,255,255,0.85); line-height: 1.45; }
+  .hero.carousel-on .hero-caption { display: block; position: absolute; right: 30px; bottom: 52px; left: auto; margin: 0; max-width: min(58%, 460px); text-align: right; z-index: 3; }
+  .hc-card { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 7px; background: rgba(0,0,0,0.34); padding: 13px 16px; border-radius: 7px; }
+  .hc-card .hc-title { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1rem; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+  .hc-card .hc-blurb { font-size: 0.85rem; color: rgba(255,255,255,0.9); line-height: 1.45; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+  .hc-btn { margin-top: 3px; background: var(--yellow); color: var(--black); border: none; border-radius: 3px;
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.8rem; padding: 8px 16px; cursor: pointer; transition: background 0.15s; }
+  .hc-btn:hover { background: var(--lemon); }
   .hero-dots { display: none; gap: 9px; justify-content: center; margin-top: 18px; }
-  .hero.carousel-on .hero-dots { display: flex; }
+  .hero.carousel-on .hero-dots { display: flex; position: absolute; left: 0; right: 0; bottom: 22px; margin: 0; z-index: 3; }
   .hero-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.45); border: none; padding: 0; cursor: pointer; transition: background 0.2s, transform 0.2s; }
   .hero-dot:hover { background: rgba(255,255,255,0.75); }
   .hero-dot.active { background: var(--yellow); transform: scale(1.3); }
@@ -327,7 +333,9 @@
     .t-event:nth-child(even) .t-card { margin-top: 200px; }
     header { padding: 12px 16px; }
     main { padding: 0 16px 60px; }
-    .hero.carousel-on .hero-inner { min-height: 400px; padding: 56px 16px 48px; }
+    .hero.carousel-on .hero-inner { min-height: 420px; padding: 52px 16px 70px; }
+    .hero.carousel-on .hero-caption { position: static; right: auto; bottom: auto; max-width: 100%; text-align: center; margin-top: 18px; }
+    .hc-card { align-items: center; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
@@ -1159,10 +1167,11 @@ function setHeroSlide(i){
   const d = HERO[heroIdx];
   const blurb = d.story ? (d.story.length > 130 ? d.story.slice(0,130).trim() + "…" : d.story) : (d.location || "");
   $("heroCaption").innerHTML =
-    `<button class="hc-link" data-key="${DATA.indexOf(d)}">
+    `<div class="hc-card">
        <span class="hc-title">${esc(d.title)}${d.year ? ` · ${d.year}` : ""}</span>
        ${blurb ? `<span class="hc-blurb">${esc(blurb)}</span>` : ""}
-     </button>`;
+       <button class="hc-btn" data-key="${DATA.indexOf(d)}">View this photo →</button>
+     </div>`;
 }
 function startHeroTimer(){
   clearInterval(heroTimer);
