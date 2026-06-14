@@ -1138,6 +1138,9 @@ async function saveSettings(){
 function switchView(name){
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("active", v.id === "view-"+name));
   document.querySelectorAll(".nav-btn[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === name));
+  // The hero greeting only shows on the Timeline (home); hidden elsewhere.
+  if(name === "timeline"){ $("hero").style.display = ""; startHeroTimer(); }
+  else { $("hero").style.display = "none"; clearInterval(heroTimer); }
 }
 function renderAll(){
   renderHeroCarousel();
