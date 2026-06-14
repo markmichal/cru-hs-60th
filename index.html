@@ -73,7 +73,7 @@
 
   /* ============ HERO ============ */
   .hero {
-    padding: 60px 28px 44px; text-align: center;
+    position: relative; padding: 60px 28px 44px; text-align: center;
     background:
       radial-gradient(ellipse 70% 90% at 50% -10%, rgba(255,208,0,0.22), transparent 70%),
       var(--white);
@@ -88,6 +88,33 @@
   }
   body.editing .hero .data-status { display: inline-block; }
   .hero .data-status.live { border-color: var(--turquoise); color: var(--turquoise); }
+
+  /* Hero photo carousel (overlay mode — only active when photos are tagged Featured) */
+  .hero-carousel { display: none; }
+  .hero.carousel-on { padding: 0; background: var(--black); }
+  .hero.carousel-on .hero-carousel { display: block; position: absolute; inset: 0; overflow: hidden; z-index: 0; }
+  .hero-slide { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1s ease; }
+  .hero-slide.active { opacity: 1; }
+  .hero.carousel-on .hero-carousel::after { content: ''; position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(180deg, rgba(0,0,0,0.50) 0%, rgba(0,0,0,0.22) 38%, rgba(0,0,0,0.62) 100%); }
+  .hero.carousel-on .hero-inner {
+    position: relative; z-index: 2; padding: 88px 28px 64px;
+    min-height: 520px; display: flex; flex-direction: column; justify-content: center;
+  }
+  .hero.carousel-on h2 { color: var(--white); text-shadow: 0 2px 18px rgba(0,0,0,0.45); }
+  .hero.carousel-on p { color: rgba(255,255,255,0.92); text-shadow: 0 1px 12px rgba(0,0,0,0.5); }
+  .hero.carousel-on .hero-image { display: none; }
+  .hero-caption { display: none; }
+  .hero.carousel-on .hero-caption { display: block; margin-top: 20px; }
+  .hc-link { background: none; border: none; cursor: pointer; color: #fff; font-family: inherit; padding: 8px 14px; border-radius: 4px; display: inline-flex; flex-direction: column; gap: 2px; transition: background 0.15s; max-width: 600px; }
+  .hc-link:hover { background: rgba(255,255,255,0.14); }
+  .hc-link .hc-title { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; }
+  .hc-link .hc-blurb { font-size: 0.84rem; color: rgba(255,255,255,0.85); line-height: 1.45; }
+  .hero-dots { display: none; gap: 9px; justify-content: center; margin-top: 18px; }
+  .hero.carousel-on .hero-dots { display: flex; }
+  .hero-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.45); border: none; padding: 0; cursor: pointer; transition: background 0.2s, transform 0.2s; }
+  .hero-dot:hover { background: rgba(255,255,255,0.75); }
+  .hero-dot.active { background: var(--yellow); transform: scale(1.3); }
 
   main { max-width: 1200px; margin: 0 auto; padding: 0 28px 80px; }
   .view { display: none; }
@@ -300,6 +327,7 @@
     .t-event:nth-child(even) .t-card { margin-top: 200px; }
     header { padding: 12px 16px; }
     main { padding: 0 16px 60px; }
+    .hero.carousel-on .hero-inner { min-height: 400px; padding: 56px 16px 48px; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
@@ -334,11 +362,16 @@
   </nav>
 </header>
 
-<div class="hero">
-  <h2><span data-set="heroHeading">Sixty years of reaching teenagers with</span> <span class="yr" data-set="heroHighlight">the gospel.</span></h2>
-  <p data-set="heroText">From Student Venture to Cru High School — explore the moments, the people, and the places. Then add your own photos, flyers, and stories to the collection.</p>
-  <img class="hero-image" id="heroImage" alt="" style="display:none">
-  <div><div class="data-status" id="dataStatus">Loading&hellip;</div></div>
+<div class="hero" id="hero">
+  <div class="hero-carousel" id="heroCarousel" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <h2><span data-set="heroHeading">Sixty years of reaching teenagers with</span> <span class="yr" data-set="heroHighlight">the gospel.</span></h2>
+    <p data-set="heroText">From Student Venture to Cru High School — explore the moments, the people, and the places. Then add your own photos, flyers, and stories to the collection.</p>
+    <div class="hero-caption" id="heroCaption"></div>
+    <div class="hero-dots" id="heroDots"></div>
+    <img class="hero-image" id="heroImage" alt="" style="display:none">
+    <div><div class="data-status" id="dataStatus">Loading&hellip;</div></div>
+  </div>
 </div>
 
 <main>
@@ -534,6 +567,9 @@ let SETTINGS = {};          // values loaded from the Site Settings tab
 let filters = { search:"", era:"", location:"", person:"", type:"" };
 let currentEra = null;
 let editing = false;
+let HERO = [];              // photos tagged "Featured" for the hero carousel
+let heroIdx = 0;
+let heroTimer = null;
 
 /* ============ HELPERS ============ */
 const $ = id => document.getElementById(id);
@@ -659,7 +695,7 @@ function rowsToItems(json){
     title:idx("title"), year:idx("year"), loc:idx("location"), people:idx("people"),
     type:idx("type"), story:idx("story"), photo:idx("photo"),
     bl:idx("button label"), bu:idx("button url"),
-    approved:idx("approved"), tl:idx("timeline")
+    approved:idx("approved"), tl:idx("timeline"), fe:idx("featured")
   };
   const val = (row,i) => (i>=0 && row.c && row.c[i]) ? (row.c[i].v ?? "") : "";
   // First non-empty value across any of the video columns
@@ -679,7 +715,8 @@ function rowsToItems(json){
     buttonLabel: String(val(r,I.bl)),
     buttonUrl: String(val(r,I.bu)),
     approved: val(r,I.approved) === true || String(val(r,I.approved)).toUpperCase() === "TRUE",
-    onTimeline: val(r,I.tl) === true || String(val(r,I.tl)).toUpperCase() === "TRUE"
+    onTimeline: val(r,I.tl) === true || String(val(r,I.tl)).toUpperCase() === "TRUE",
+    featured: val(r,I.fe) === true || String(val(r,I.fe)).toUpperCase() === "TRUE"
   })).filter(d => d.title && d.approved);
 }
 
@@ -1087,11 +1124,54 @@ function switchView(name){
   document.querySelectorAll(".nav-btn[data-view]").forEach(b => b.classList.toggle("active", b.dataset.view === name));
 }
 function renderAll(){
+  renderHeroCarousel();
   renderTimeline();
   buildFilterOptions();
   renderGallery();
   renderPeople();
   renderLocations();
+}
+
+/* ============ HERO PHOTO CAROUSEL ============ */
+// Approved photos tagged "Featured" in the sheet, oldest first, capped at 7.
+function heroItems(){
+  return DATA.filter(d => d.featured && d.photo)
+    .sort((a,b) => (a.year||0) - (b.year||0))
+    .slice(0, 7);
+}
+function setHeroSlide(i){
+  if(!HERO.length) return;
+  heroIdx = (i + HERO.length) % HERO.length;
+  document.querySelectorAll("#heroCarousel .hero-slide").forEach((el,k) => el.classList.toggle("active", k===heroIdx));
+  document.querySelectorAll("#heroDots .hero-dot").forEach((el,k) => el.classList.toggle("active", k===heroIdx));
+  const d = HERO[heroIdx];
+  const blurb = d.story ? (d.story.length > 130 ? d.story.slice(0,130).trim() + "…" : d.story) : (d.location || "");
+  $("heroCaption").innerHTML =
+    `<button class="hc-link" data-key="${DATA.indexOf(d)}">
+       <span class="hc-title">${esc(d.title)}${d.year ? ` · ${d.year}` : ""}</span>
+       ${blurb ? `<span class="hc-blurb">${esc(blurb)}</span>` : ""}
+     </button>`;
+}
+function startHeroTimer(){
+  clearInterval(heroTimer);
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(HERO.length > 1 && !reduce) heroTimer = setInterval(() => setHeroSlide(heroIdx + 1), 5500);
+}
+function renderHeroCarousel(){
+  HERO = heroItems();
+  const hero = $("hero");
+  clearInterval(heroTimer);
+  if(!HERO.length){
+    hero.classList.remove("carousel-on");
+    $("heroCarousel").innerHTML = ""; $("heroDots").innerHTML = ""; $("heroCaption").innerHTML = "";
+    return;
+  }
+  hero.classList.add("carousel-on");
+  $("heroCarousel").innerHTML = HERO.map((d,k) =>
+    `<div class="hero-slide ${k===0?'active':''}" style="background-image:url('${esc(driveImg(d.photo))}')"></div>`).join("");
+  $("heroDots").innerHTML = HERO.map((d,k) =>
+    `<button class="hero-dot ${k===0?'active':''}" data-hero="${k}" aria-label="Show photo ${k+1} of ${HERO.length}"></button>`).join("");
+  heroIdx = 0; setHeroSlide(0); startHeroTimer();
 }
 
 /* ============ EVENTS ============ */
@@ -1116,6 +1196,10 @@ document.addEventListener("click", e => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
+
+  // Hero carousel dots
+  const dot = e.target.closest("[data-hero]");
+  if(dot){ setHeroSlide(parseInt(dot.dataset.hero)); startHeroTimer(); return; }
 
   const nav = e.target.closest(".nav-btn[data-view]");
   if(nav){
@@ -1185,6 +1269,13 @@ document.addEventListener("keydown", e => {
   window.addEventListener("mousemove", e => { if(!down) return; const dx=e.pageX-startX; if(Math.abs(dx)>4) moved=true; wrap.scrollLeft=startScroll-dx; });
   window.addEventListener("mouseup", () => { down=false; wrap.classList.remove("dragging"); });
   wrap.addEventListener("click", e => { if(moved){ e.stopPropagation(); e.preventDefault(); } }, true);
+})();
+
+/* Pause the hero carousel while the visitor is hovering it */
+(function(){
+  const hero = $("hero");
+  hero.addEventListener("mouseenter", () => clearInterval(heroTimer));
+  hero.addEventListener("mouseleave", () => startHeroTimer());
 })();
 
 /* ============ INIT ============ */
