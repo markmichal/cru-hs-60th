@@ -152,8 +152,9 @@ function handleAddStints(body){
 
 /* ===================== LLM PROVIDER (swappable) =====================
  * Everything provider-specific lives in this one function. This calls
- * Anthropic's Claude Messages API (raw HTTPS — Apps Script has no SDK) and
- * uses structured outputs so the model returns strict JSON we can parse.
+ * Anthropic's Claude Messages API (raw HTTPS — Apps Script has no SDK).
+ * The PARSER_PROMPT instructs the model to return a bare JSON array;
+ * the text block is parsed directly.
  * To swap providers later, replace the body of callLlmParse() only.
  * Returns an array of { personName, location, startYear, endYear, role, notes }.
  */
@@ -163,42 +164,14 @@ function callLlmParse(notes){
 
   // Model: Claude Haiku 4.5 — fast and low-cost, plenty for this simple
   // extraction task. For higher quality you could use "claude-opus-4-8".
-  const MODEL = "claude-haiku-4-5";
+  const MODEL = "claude-haiku-4-5-20251001";
 
+  // The PARSER_PROMPT instructs the model to return only a JSON array.
+  // No structured-output schema needed — we parse the text block directly.
   const payload = {
     model: MODEL,
     max_tokens: 4096,
-    thinking: { type: "disabled" },        // simple extraction — no need to think
     system: PARSER_PROMPT,
-    // Structured outputs: force a strict JSON object { stints: [ ... ] }.
-    output_config: {
-      format: {
-        type: "json_schema",
-        schema: {
-          type: "object",
-          properties: {
-            stints: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  personName: { type: "string" },
-                  location:   { type: "string" },
-                  startYear:  { type: "string" },
-                  endYear:    { type: "string" },
-                  role:       { type: "string" },
-                  notes:      { type: "string" }
-                },
-                required: ["personName","location","startYear","endYear","role","notes"],
-                additionalProperties: false
-              }
-            }
-          },
-          required: ["stints"],
-          additionalProperties: false
-        }
-      }
-    },
     messages: [{ role: "user", content: "NOTES:\n" + notes }]
   };
 
