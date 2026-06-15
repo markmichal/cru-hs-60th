@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ministry History Intake — Cru High School 60th</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --yellow:#FFD000; --lemon:#FFE378; --black:#000; --white:#fff; --gray:#DEDEDE;
+    --orange:#F08220; --vermilion:#D34400; --cyan:#00C3D8; --turquoise:#007990;
+    --graphite:#585652; --soft:#F7F6F2;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Inter',sans-serif; background:var(--soft); color:var(--black); min-height:100vh;}
+  button{font-family:inherit; cursor:pointer;}
+  header{
+    background:rgba(255,255,255,.96); border-bottom:3px solid var(--yellow);
+    padding:14px 28px; display:flex; align-items:center; gap:14px;
+  }
+  .badge-60{width:46px; height:46px; border-radius:50%; background:var(--yellow); color:var(--black);
+    display:flex; align-items:center; justify-content:center; font-family:'Sora',sans-serif; font-weight:800; font-size:1rem;}
+  header h1{font-family:'Sora',sans-serif; font-weight:800; font-size:1.1rem; line-height:1.1;}
+  header .sub{font-family:'Sora',sans-serif; font-size:.64rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--graphite);}
+  main{max-width:980px; margin:0 auto; padding:28px 22px 90px;}
+
+  .card{background:var(--white); border:1px solid var(--gray); border-radius:6px; padding:24px; box-shadow:0 1px 4px rgba(0,0,0,.06); margin-bottom:20px;}
+  h2{font-family:'Sora',sans-serif; font-weight:800; font-size:1.35rem; letter-spacing:-.02em; margin-bottom:6px;}
+  .lead{color:var(--graphite); font-size:.92rem; line-height:1.55; margin-bottom:18px;}
+  label{display:block; font-size:.76rem; font-weight:700; letter-spacing:.04em; color:var(--graphite); margin-bottom:5px;}
+  input[type=text], input[type=password], textarea, select{
+    width:100%; background:var(--white); border:1px solid var(--gray); border-radius:4px;
+    padding:11px 12px; font-family:'Inter',sans-serif; font-size:.92rem; color:var(--black);
+  }
+  textarea{min-height:160px; resize:vertical; line-height:1.5;}
+  input:focus, textarea:focus, select:focus{outline:2px solid var(--yellow); outline-offset:1px;}
+  .field{margin-bottom:16px;}
+  .hint{font-size:.78rem; color:var(--graphite); margin-top:5px; line-height:1.45;}
+
+  /* Soft yellow info box (the photo note) */
+  .infobox{background:var(--lemon); border:1px solid var(--yellow); border-radius:6px;
+    padding:14px 16px; font-size:.9rem; line-height:1.55; margin-bottom:18px; color:var(--black);}
+  .infobox b{font-weight:700;}
+
+  .btn{background:var(--yellow); color:var(--black); border:none; border-radius:4px;
+    padding:12px 26px; font-family:'Sora',sans-serif; font-weight:800; font-size:.95rem;}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn.dark{background:var(--black); color:var(--yellow);}
+  .btn.ghost{background:var(--white); border:1px solid var(--gray); color:var(--graphite); font-family:'Inter',sans-serif; font-weight:600;}
+
+  .msg{padding:12px 14px; border-radius:4px; font-size:.88rem; line-height:1.5; margin-top:14px; display:none;}
+  .msg.error{background:#fde8e0; border:1px solid var(--vermilion); color:var(--vermilion);}
+  .msg.ok{background:#e4f5ee; border:1px solid var(--turquoise); color:var(--turquoise);}
+
+  /* preview table */
+  .preview-wrap{overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; min-width:900px; margin-top:6px;}
+  th{font-family:'Sora',sans-serif; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; color:var(--graphite); text-align:left; padding:8px 8px; border-bottom:2px solid var(--yellow);}
+  td{padding:5px 6px; border-bottom:1px solid var(--gray); vertical-align:top;}
+  td input, td select, td textarea{padding:7px 8px; font-size:.85rem;}
+  td textarea{min-height:42px; line-height:1.4;}
+  td.tl{text-align:center; vertical-align:middle;}
+  td.tl input{width:18px; height:18px; accent-color:var(--turquoise); cursor:pointer;}
+  th.tl{text-align:center;}
+  td input.yr{max-width:74px;}
+  td.del{width:34px; text-align:center;}
+  .row-del{background:none; border:none; color:var(--vermilion); font-size:1.2rem; line-height:1; padding:4px 6px;}
+  .tbl-actions{display:flex; gap:10px; align-items:center; margin-top:14px; flex-wrap:wrap;}
+
+  .spinner{display:inline-block; width:15px; height:15px; border:2px solid rgba(0,0,0,.25); border-top-color:var(--black); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:7px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* PIN gate */
+  .gate{position:fixed; inset:0; background:var(--soft); z-index:50; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .gate .card{max-width:380px; width:100%; text-align:center;}
+  .gate.hidden{display:none;}
+  #appWrap.locked{display:none;}
+  .footnote{text-align:center; color:var(--graphite); font-size:.76rem; margin-top:10px;}
+  a{color:var(--turquoise);}
+</style>
+</head>
+<body>
+
+<!-- PIN GATE -->
+<div class="gate" id="gate">
+  <div class="card">
+    <div class="badge-60" style="margin:0 auto 14px">60</div>
+    <h2>Ministry History Intake</h2>
+    <p class="lead" style="margin-bottom:16px">Enter the intake PIN to continue.</p>
+    <div class="field">
+      <input type="password" id="pinInput" placeholder="PIN" autocomplete="off" inputmode="numeric">
+    </div>
+    <button class="btn" id="pinBtn" style="width:100%">Enter</button>
+    <div class="msg error" id="pinMsg">That PIN didn't match. Try again.</div>
+    <div class="footnote">This is the <b>History</b> intake. It uses the same PIN as the staff intake.</div>
+  </div>
+</div>
+
+<div id="appWrap" class="locked">
+<header>
+  <div class="badge-60">60</div>
+  <div style="flex:1">
+    <h1>Ministry History Intake</h1>
+    <div class="sub">Cru High School · 60th Anniversary</div>
+  </div>
+  <button class="btn ghost" id="lockBtn" style="padding:9px 16px; font-size:.84rem">Log out</button>
+</header>
+
+<main>
+  <!-- STEP 1: paste notes -->
+  <div class="card">
+    <h2>Turn your notes into timeline events</h2>
+    <p class="lead">Paste what you know about a ministry event or moment in history. The tool will turn it into rows you can read over and fix before anything is saved. Nothing goes public until Mark reviews it.</p>
+
+    <div class="field">
+      <label for="gatherer">Your name</label>
+      <input type="text" id="gatherer" placeholder="e.g. Tom" autocomplete="name">
+      <div class="hint">So we know who gathered this. Saved with each record for our reference only — never shown on the website.</div>
+    </div>
+
+    <div class="field">
+      <label for="notes">Paste your notes about a ministry event or moment</label>
+      <textarea id="notes" placeholder="Example: In 1972 the first Student Venture summer camp was held near Estes Park, Colorado. Dave and Sandy Hughes led it. About 80 students came and a number gave their lives to Christ that week."></textarea>
+      <div class="hint">Don't worry about format — dates, stories, names, locations, whatever you have. The AI will sort it out.</div>
+    </div>
+
+    <div class="infobox">
+      📸 <b>Have a photo to go with this?</b> Drop it in the shared Google Drive folder called <b>Tom's History Photos</b> — someone will add the link for you.
+    </div>
+
+    <button class="btn" id="parseBtn">Parse my notes</button>
+    <div class="msg error" id="parseMsg"></div>
+  </div>
+
+  <!-- STEP 2: preview/edit -->
+  <div class="card" id="previewCard" style="display:none">
+    <h2>Review &amp; fix before saving</h2>
+    <p class="lead">Each row is one event. Edit any box, choose a type, check "On timeline" for the big milestones, delete rows you don't want, or add a row by hand. Leave a box blank if you don't know it.</p>
+    <div class="preview-wrap">
+      <table id="previewTable">
+        <thead><tr>
+          <th>Title</th><th>Year</th><th>Location</th><th>People</th><th>Type</th><th>Story</th><th class="tl">On timeline</th><th></th>
+        </tr></thead>
+        <tbody id="previewBody"></tbody>
+      </table>
+    </div>
+    <div class="tbl-actions">
+      <button class="btn ghost" id="addRowBtn">+ Add a row</button>
+      <button class="btn dark" id="submitBtn">Add to spreadsheet for review</button>
+    </div>
+    <div class="msg error" id="submitMsg"></div>
+    <div class="msg ok" id="okMsg"></div>
+  </div>
+</main>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG — must match index.html / the Apps Script
+   SCRIPT_URL  the Apps Script Web App URL (same one the site editor uses)
+   INTAKE_PIN  gate for this page; the Apps Script checks it too. This is
+               the SAME PIN as the staff intake — both use INTAKE_PIN.
+===================================================================== */
+const CONFIG = {
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
+  INTAKE_PIN: "1951"
+};
+
+const TYPES = ["Milestone","Photo","Flyer","Story","Event"];
+const $ = id => document.getElementById(id);
+const esc  = s => String(s ?? "").replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const attr = s => String(s ?? "").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const truthy = v => v === true || String(v).toUpperCase() === "TRUE";
+
+/* ---------- PIN gate ---------- */
+function unlock(){
+  $("gate").classList.add("hidden");
+  $("appWrap").classList.remove("locked");
+  const saved = sessionStorage.getItem("historyName");
+  if(saved) $("gatherer").value = saved;
+}
+function tryPin(){
+  if($("pinInput").value.trim() === CONFIG.INTAKE_PIN){
+    sessionStorage.setItem("historyUnlocked","1");
+    unlock();
+  } else {
+    $("pinMsg").style.display = "block";
+  }
+}
+$("pinBtn").addEventListener("click", tryPin);
+$("pinInput").addEventListener("keydown", e => { if(e.key==="Enter") tryPin(); });
+if(sessionStorage.getItem("historyUnlocked") === "1") unlock();
+
+$("lockBtn").addEventListener("click", () => {
+  sessionStorage.removeItem("historyUnlocked");
+  $("pinInput").value = "";
+  $("pinMsg").style.display = "none";
+  $("appWrap").classList.add("locked");
+  $("gate").classList.remove("hidden");
+});
+
+/* ---------- POST helper (text/plain avoids a CORS preflight) ---------- */
+async function postAction(payload){
+  const res = await fetch(CONFIG.SCRIPT_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+
+/* ---------- Step 1: parse ---------- */
+$("gatherer").addEventListener("input", e => sessionStorage.setItem("historyName", e.target.value.trim()));
+
+function showMsg(id, text){ const el=$(id); el.textContent=text; el.style.display="block"; }
+function hideMsg(id){ $(id).style.display="none"; }
+
+$("parseBtn").addEventListener("click", async () => {
+  hideMsg("parseMsg");
+  const name = $("gatherer").value.trim();
+  const notes = $("notes").value.trim();
+  if(!name){ showMsg("parseMsg","Please add your name first."); $("gatherer").focus(); return; }
+  if(!notes){ showMsg("parseMsg","Please paste some notes to parse."); $("notes").focus(); return; }
+  if(notes.length > 8000){ showMsg("parseMsg","That's a lot of text — please keep it under about 8,000 characters (one or two events at a time)."); return; }
+
+  const btn = $("parseBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Reading your notes…';
+  try{
+    const out = await postAction({ pin: CONFIG.INTAKE_PIN, action:"parseHistory", notes });
+    if(!out.ok) throw new Error(out.error || "Couldn't parse those notes.");
+    const events = Array.isArray(out.events) ? out.events : [];
+    if(!events.length){ showMsg("parseMsg","I couldn't find any clear events in that text. Try adding a date, a place, or what happened."); return; }
+    renderPreview(events);
+  }catch(err){
+    showMsg("parseMsg", friendly(err.message));
+  }finally{
+    btn.disabled = false; btn.textContent = "Parse my notes";
+  }
+});
+
+function friendly(m){
+  if(/api key|ANTHROPIC|GEMINI/i.test(m)) return "The AI key isn't set up yet on the spreadsheet side. Ask Mark to add the ANTHROPIC_API_KEY (see the setup notes).";
+  return "Something went wrong: " + m;
+}
+
+/* ---------- Step 2: editable preview ---------- */
+function rowHTML(e){
+  e = e || {};
+  const selType = TYPES.includes(e.type) ? e.type : "Event";
+  return `<tr>
+    <td><input data-f="title" value="${attr(e.title)}"></td>
+    <td><input data-f="year" class="yr" value="${attr(e.year)}"></td>
+    <td><input data-f="location" value="${attr(e.location)}"></td>
+    <td><input data-f="people" value="${attr(e.people)}"></td>
+    <td><select data-f="type">${TYPES.map(t=>`<option ${t===selType?'selected':''}>${t}</option>`).join("")}</select></td>
+    <td><textarea data-f="story" rows="2">${esc(e.story)}</textarea></td>
+    <td class="tl"><input type="checkbox" data-f="onTimeline" ${truthy(e.onTimeline)?'checked':''}></td>
+    <td class="del"><button class="row-del" title="Delete row">&times;</button></td>
+  </tr>`;
+}
+function renderPreview(events){
+  $("previewBody").innerHTML = events.map(rowHTML).join("");
+  $("previewCard").style.display = "block";
+  hideMsg("submitMsg"); hideMsg("okMsg");
+  $("previewCard").scrollIntoView({behavior:"smooth", block:"start"});
+}
+$("addRowBtn").addEventListener("click", () => {
+  $("previewBody").insertAdjacentHTML("beforeend", rowHTML({}));
+});
+$("previewBody").addEventListener("click", e => {
+  if(e.target.closest(".row-del")) e.target.closest("tr").remove();
+});
+
+function collectRows(){
+  return [...$("previewBody").querySelectorAll("tr")].map(tr => {
+    const o = {};
+    tr.querySelectorAll("[data-f]").forEach(el => {
+      o[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value.trim();
+    });
+    return o;
+  }).filter(o => o.title); // a row needs at least a title
+}
+
+$("submitBtn").addEventListener("click", async () => {
+  hideMsg("submitMsg"); hideMsg("okMsg");
+  const rows = collectRows();
+  if(!rows.length){ showMsg("submitMsg","Add at least one row with a title."); return; }
+  const name = $("gatherer").value.trim();
+  if(!name){ showMsg("submitMsg","Please add your name at the top first."); return; }
+
+  const btn = $("submitBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving…';
+  try{
+    const out = await postAction({ pin: CONFIG.INTAKE_PIN, action:"addHistoryEvents", submittedBy:name, events:rows });
+    if(!out.ok) throw new Error(out.error || "Save failed.");
+    showMsg("okMsg", "Submitted! Mark will review before anything goes live. Thank you, Tom.");
+    // reset for the next event
+    $("notes").value = "";
+    $("previewBody").innerHTML = "";
+    $("previewCard").style.display = "none";
+    $("notes").scrollIntoView({behavior:"smooth", block:"center"});
+  }catch(err){
+    showMsg("submitMsg", "Couldn't save: " + err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = "Add to spreadsheet for review";
+  }
+});
+</script>
+</body>
+</html>
