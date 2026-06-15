@@ -90,37 +90,39 @@
   body.editing .hero .data-status { display: inline-block; }
   .hero .data-status.live { border-color: var(--turquoise); color: var(--turquoise); }
 
-  /* Hero photo carousel (overlay mode — only active when photos are tagged Featured) */
+  /* Hero photo carousel — hidden until photos are tagged Featured */
+  .hero-inner { max-width: 1120px; margin: 0 auto; }
+  .hero-media { display: none; }
   .hero-carousel { display: none; }
-  .hero.carousel-on { padding: 0; background: var(--black); }
-  .hero.carousel-on .hero-carousel { display: block; position: absolute; inset: 0; overflow: hidden; z-index: 0; }
   .hero-slide { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 1s ease; }
   .hero-slide.active { opacity: 1; }
-  /* Darker scrim so the white centered text pops; extra shade bottom-right behind the caption */
-  .hero.carousel-on .hero-carousel::after { content: ''; position: absolute; inset: 0; z-index: 1;
-    background:
-      radial-gradient(ellipse 60% 70% at 85% 100%, rgba(0,0,0,0.55), transparent 70%),
-      linear-gradient(180deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.45) 42%, rgba(0,0,0,0.78) 100%); }
-  .hero.carousel-on .hero-inner {
-    position: relative; z-index: 2; padding: 84px 28px 92px;
-    min-height: 540px; display: flex; flex-direction: column; justify-content: center;
-  }
-  .hero.carousel-on h2 { color: var(--white); text-shadow: 0 2px 18px rgba(0,0,0,0.55); }
-  .hero.carousel-on p { color: rgba(255,255,255,0.94); text-shadow: 0 1px 12px rgba(0,0,0,0.6); }
-  .hero.carousel-on .hero-image { display: none; }
-  /* Photo caption: pinned bottom-right, distinct from the centered site title */
   .hero-caption { display: none; }
-  .hero.carousel-on .hero-caption { display: block; position: absolute; right: 30px; bottom: 50px; left: auto; margin: 0; max-width: min(42%, 340px); text-align: right; z-index: 3; }
-  .hc-card { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; }
-  .hc-card .hc-title { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1rem; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
-  .hc-card .hc-blurb { font-size: 0.85rem; color: rgba(255,255,255,0.9); line-height: 1.45; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
-  .hc-btn { margin-top: 3px; background: transparent; color: var(--yellow); border: 1px solid var(--yellow); border-radius: 3px;
-    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.8rem; padding: 7px 15px; cursor: pointer; transition: all 0.15s; }
-  .hc-btn:hover { background: var(--yellow); color: var(--black); }
-  .hero-dots { display: none; gap: 9px; justify-content: center; margin-top: 18px; }
-  .hero.carousel-on .hero-dots { display: flex; position: absolute; left: 0; right: 0; bottom: 22px; margin: 0; z-index: 3; }
-  .hero-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.45); border: none; padding: 0; cursor: pointer; transition: background 0.2s, transform 0.2s; }
-  .hero-dot:hover { background: rgba(255,255,255,0.75); }
+  .hero-dots { display: none; }
+
+  /* SPLIT layout when Featured photos exist: title/text on one side, photo on the other.
+     No more text over the photo — the heading sits on a clean background beside it. */
+  .hero.carousel-on { padding: 48px 28px; background:
+      radial-gradient(ellipse 60% 90% at 0% 0%, rgba(255,208,0,0.18), transparent 70%), var(--white); }
+  .hero.carousel-on .hero-inner {
+    display: grid; grid-template-columns: 1.05fr 1fr; gap: 46px; align-items: center; text-align: left;
+  }
+  .hero.carousel-on .hero-text { text-align: left; }
+  .hero.carousel-on .hero-text p { margin-left: 0; }
+  .hero.carousel-on .hero-image { display: none; }
+  .hero.carousel-on .hero-media {
+    display: block; position: relative; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.18); background: var(--soft);
+  }
+  .hero.carousel-on .hero-carousel { display: block; position: absolute; inset: 0; z-index: 0; }
+  /* caption now holds ONLY the "View this photo" button, over the photo's corner */
+  .hero.carousel-on .hero-caption { display: block; position: absolute; right: 14px; bottom: 14px; z-index: 3; }
+  .hc-btn { background: var(--yellow); color: var(--black); border: none; border-radius: 4px;
+    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.82rem; padding: 9px 16px; cursor: pointer;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.28); transition: background 0.15s; }
+  .hc-btn:hover { background: var(--lemon); }
+  .hero.carousel-on .hero-dots { display: flex; gap: 9px; position: absolute; left: 14px; bottom: 20px; z-index: 3; }
+  .hero-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.25); padding: 0; cursor: pointer; transition: background 0.2s, transform 0.2s; }
+  .hero-dot:hover { background: #fff; }
   .hero-dot.active { background: var(--yellow); transform: scale(1.3); }
 
   main { max-width: 1200px; margin: 0 auto; padding: 0 28px 80px; }
@@ -341,9 +343,9 @@
     .t-event:nth-child(even) .t-card { margin-top: 200px; }
     header { padding: 12px 16px; }
     main { padding: 0 16px 60px; }
-    .hero.carousel-on .hero-inner { min-height: 420px; padding: 52px 16px 70px; }
-    .hero.carousel-on .hero-caption { position: static; right: auto; bottom: auto; max-width: 100%; text-align: center; margin-top: 18px; }
-    .hc-card { align-items: center; }
+    .hero.carousel-on { padding: 32px 16px; }
+    .hero.carousel-on .hero-inner { grid-template-columns: 1fr; gap: 24px; }
+    .hero.carousel-on .hero-media { aspect-ratio: 16 / 10; }
   }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; }
@@ -379,14 +381,18 @@
 </header>
 
 <div class="hero" id="hero">
-  <div class="hero-carousel" id="heroCarousel" aria-hidden="true"></div>
   <div class="hero-inner">
-    <h2><span data-set="heroHeading">Sixty years of reaching teenagers with</span> <span class="yr" data-set="heroHighlight">the gospel.</span></h2>
-    <p data-set="heroText">From Student Venture to Cru High School — explore the moments, the people, and the places. Then add your own photos, flyers, and stories to the collection.</p>
-    <div class="hero-caption" id="heroCaption"></div>
-    <div class="hero-dots" id="heroDots"></div>
-    <img class="hero-image" id="heroImage" alt="" style="display:none">
-    <div><div class="data-status" id="dataStatus">Loading&hellip;</div></div>
+    <div class="hero-text">
+      <h2><span data-set="heroHeading">Sixty years of reaching teenagers with</span> <span class="yr" data-set="heroHighlight">the gospel.</span></h2>
+      <p data-set="heroText">From Student Venture to Cru High School — explore the moments, the people, and the places. Then add your own photos, flyers, and stories to the collection.</p>
+      <img class="hero-image" id="heroImage" alt="" style="display:none">
+      <div><div class="data-status" id="dataStatus">Loading&hellip;</div></div>
+    </div>
+    <div class="hero-media">
+      <div class="hero-carousel" id="heroCarousel" aria-hidden="true"></div>
+      <div class="hero-caption" id="heroCaption"></div>
+      <div class="hero-dots" id="heroDots"></div>
+    </div>
   </div>
 </div>
 
@@ -1280,13 +1286,9 @@ function setHeroSlide(i){
   document.querySelectorAll("#heroCarousel .hero-slide").forEach((el,k) => el.classList.toggle("active", k===heroIdx));
   document.querySelectorAll("#heroDots .hero-dot").forEach((el,k) => el.classList.toggle("active", k===heroIdx));
   const d = HERO[heroIdx];
-  const blurb = d.story ? (d.story.length > 130 ? d.story.slice(0,130).trim() + "…" : d.story) : (d.location || "");
+  // Only the "View this photo" button now — no photo title or description.
   $("heroCaption").innerHTML =
-    `<div class="hc-card">
-       <span class="hc-title">${esc(d.title)}${d.year ? ` · ${d.year}` : ""}</span>
-       ${blurb ? `<span class="hc-blurb">${esc(blurb)}</span>` : ""}
-       <button class="hc-btn" data-key="${DATA.indexOf(d)}">View this photo →</button>
-     </div>`;
+    `<button class="hc-btn" data-key="${DATA.indexOf(d)}">View this photo →</button>`;
 }
 function startHeroTimer(){
   clearInterval(heroTimer);
