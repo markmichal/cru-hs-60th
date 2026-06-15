@@ -53,19 +53,24 @@
   .msg.error{background:#fde8e0; border:1px solid var(--vermilion); color:var(--vermilion);}
   .msg.ok{background:#e4f5ee; border:1px solid var(--turquoise); color:var(--turquoise);}
 
-  /* preview table */
+  /* preview table — one event = one tbody (top fields + a full-width Story row) */
   .preview-wrap{overflow-x:auto;}
-  table{border-collapse:collapse; width:100%; min-width:900px; margin-top:6px;}
+  table{border-collapse:collapse; width:100%; min-width:720px; margin-top:6px;}
   th{font-family:'Sora',sans-serif; font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; color:var(--graphite); text-align:left; padding:8px 8px; border-bottom:2px solid var(--yellow);}
-  td{padding:5px 6px; border-bottom:1px solid var(--gray); vertical-align:top;}
+  td{padding:6px 6px; vertical-align:top;}
   td input, td select, td textarea{padding:7px 8px; font-size:.85rem;}
-  td textarea{min-height:42px; line-height:1.4;}
   td.tl{text-align:center; vertical-align:middle;}
   td.tl input{width:18px; height:18px; accent-color:var(--turquoise); cursor:pointer;}
   th.tl{text-align:center;}
   td input.yr{max-width:74px;}
   td.del{width:34px; text-align:center;}
   .row-del{background:none; border:none; color:var(--vermilion); font-size:1.2rem; line-height:1; padding:4px 6px;}
+  tbody.evt{border-bottom:2px solid var(--gray);}
+  tbody.evt:hover{background:#fcfbf7;}
+  /* the full-width story row */
+  .story-cell{padding:0 6px 14px;}
+  .story-label{display:block; font-size:.68rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--turquoise); margin:0 0 5px 2px;}
+  .story-area{width:100%; min-height:104px; line-height:1.6; font-size:.95rem; resize:vertical; overflow:hidden;}
   .tbl-actions{display:flex; gap:10px; align-items:center; margin-top:14px; flex-wrap:wrap;}
 
   .spinner{display:inline-block; width:15px; height:15px; border:2px solid rgba(0,0,0,.25); border-top-color:var(--black); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-2px; margin-right:7px;}
@@ -140,9 +145,8 @@
     <div class="preview-wrap">
       <table id="previewTable">
         <thead><tr>
-          <th>Title</th><th>Year</th><th>Location</th><th>People</th><th>Type</th><th>Story</th><th class="tl">On timeline</th><th></th>
+          <th>Title</th><th>Year</th><th>Location</th><th>People</th><th>Type</th><th class="tl">On timeline</th><th></th>
         </tr></thead>
-        <tbody id="previewBody"></tbody>
       </table>
     </div>
     <div class="tbl-actions">
@@ -244,42 +248,62 @@ function friendly(m){
   return "Something went wrong: " + m;
 }
 
-/* ---------- Step 2: editable preview ---------- */
-function rowHTML(e){
+/* ---------- Step 2: editable preview ----------
+   Each event is its own <tbody>: a row of short fields, then a full-width
+   Story row below it so there's plenty of room to read and edit the text. */
+function eventHTML(e){
   e = e || {};
   const selType = TYPES.includes(e.type) ? e.type : "Event";
-  return `<tr>
-    <td><input data-f="title" value="${attr(e.title)}"></td>
-    <td><input data-f="year" class="yr" value="${attr(e.year)}"></td>
-    <td><input data-f="location" value="${attr(e.location)}"></td>
-    <td><input data-f="people" value="${attr(e.people)}"></td>
-    <td><select data-f="type">${TYPES.map(t=>`<option ${t===selType?'selected':''}>${t}</option>`).join("")}</select></td>
-    <td><textarea data-f="story" rows="2">${esc(e.story)}</textarea></td>
-    <td class="tl"><input type="checkbox" data-f="onTimeline" ${truthy(e.onTimeline)?'checked':''}></td>
-    <td class="del"><button class="row-del" title="Delete row">&times;</button></td>
-  </tr>`;
+  return `<tbody class="evt">
+    <tr>
+      <td><input data-f="title" value="${attr(e.title)}"></td>
+      <td><input data-f="year" class="yr" value="${attr(e.year)}"></td>
+      <td><input data-f="location" value="${attr(e.location)}"></td>
+      <td><input data-f="people" value="${attr(e.people)}"></td>
+      <td><select data-f="type">${TYPES.map(t=>`<option ${t===selType?'selected':''}>${t}</option>`).join("")}</select></td>
+      <td class="tl"><input type="checkbox" data-f="onTimeline" ${truthy(e.onTimeline)?'checked':''}></td>
+      <td class="del"><button class="row-del" title="Delete this event">&times;</button></td>
+    </tr>
+    <tr>
+      <td class="story-cell" colspan="7">
+        <label class="story-label">Story — read &amp; edit the full text here</label>
+        <textarea data-f="story" class="story-area">${esc(e.story)}</textarea>
+      </td>
+    </tr>
+  </tbody>`;
 }
+// Grow a story box to fit its text so the whole story is visible.
+function autoGrow(ta){ ta.style.height = "auto"; ta.style.height = (ta.scrollHeight + 2) + "px"; }
+function autoGrowAll(){ $("previewTable").querySelectorAll(".story-area").forEach(autoGrow); }
+function clearEvents(){ $("previewTable").querySelectorAll("tbody.evt").forEach(tb => tb.remove()); }
+
 function renderPreview(events){
-  $("previewBody").innerHTML = events.map(rowHTML).join("");
+  clearEvents();
+  $("previewTable").insertAdjacentHTML("beforeend", events.map(eventHTML).join(""));
   $("previewCard").style.display = "block";
+  autoGrowAll();   // size each story box now that it's on-screen
   hideMsg("submitMsg"); hideMsg("okMsg");
   $("previewCard").scrollIntoView({behavior:"smooth", block:"start"});
 }
 $("addRowBtn").addEventListener("click", () => {
-  $("previewBody").insertAdjacentHTML("beforeend", rowHTML({}));
+  $("previewTable").insertAdjacentHTML("beforeend", eventHTML({}));
+  autoGrowAll();
 });
-$("previewBody").addEventListener("click", e => {
-  if(e.target.closest(".row-del")) e.target.closest("tr").remove();
+$("previewTable").addEventListener("click", e => {
+  if(e.target.closest(".row-del")) e.target.closest("tbody.evt").remove();
+});
+$("previewTable").addEventListener("input", e => {
+  if(e.target.classList.contains("story-area")) autoGrow(e.target);
 });
 
 function collectRows(){
-  return [...$("previewBody").querySelectorAll("tr")].map(tr => {
+  return [...$("previewTable").querySelectorAll("tbody.evt")].map(tb => {
     const o = {};
-    tr.querySelectorAll("[data-f]").forEach(el => {
+    tb.querySelectorAll("[data-f]").forEach(el => {
       o[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value.trim();
     });
     return o;
-  }).filter(o => o.title); // a row needs at least a title
+  }).filter(o => o.title); // an event needs at least a title
 }
 
 $("submitBtn").addEventListener("click", async () => {
@@ -297,7 +321,7 @@ $("submitBtn").addEventListener("click", async () => {
     showMsg("okMsg", "Submitted! Mark will review before anything goes live. Thank you, Tom.");
     // reset for the next event
     $("notes").value = "";
-    $("previewBody").innerHTML = "";
+    clearEvents();
     $("previewCard").style.display = "none";
     $("notes").scrollIntoView({behavior:"smooth", block:"center"});
   }catch(err){
