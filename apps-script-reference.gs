@@ -238,8 +238,25 @@ function handleAddHistoryEvents(body){
   });
   if(!rows.length) return json({ ok:false, error:"No valid events (each needs a title)." });
 
-  sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, width).setValues(rows);
-  return json({ ok:true, added: rows.length });
+  // Append right below the last row that actually has a Title. Do NOT use
+  // getLastRow(): the master tab can have many trailing blank-but-formatted
+  // rows (checkbox columns, etc.) that inflate it, which would drop new rows
+  // ~1000 rows down where they look lost. Scanning the Title column finds the
+  // true end of the data.
+  var startRow = lastTitleRow(sheet, cTitle) + 1;
+  sheet.getRange(startRow, 1, rows.length, width).setValues(rows);
+  return json({ ok:true, added: rows.length, startRow: startRow });
+}
+
+// Last 1-based row that has a non-empty value in the Title column.
+function lastTitleRow(sheet, titleColIdx){
+  if(titleColIdx < 0) return sheet.getLastRow();
+  var n = sheet.getMaxRows();
+  var vals = sheet.getRange(1, titleColIdx + 1, n, 1).getValues();
+  for(var r = n - 1; r >= 0; r--){
+    if(String(vals[r][0]).trim() !== "") return r + 1;
+  }
+  return 1;
 }
 
 /* ===================== LLM PROVIDER (swappable) =====================
