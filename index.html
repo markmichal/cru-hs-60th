@@ -473,6 +473,11 @@
       <div class="big">No locations yet</div>
       <div>Add staff service records or tag photos with a location to see them on the map.</div>
     </div>
+    <div id="mapUnplaced" style="display:none">
+      <div class="section-label" style="margin-top:28px">Locations not on the map</div>
+      <p style="font-size:.82rem;color:var(--graphite);margin-bottom:12px">These place names couldn't be geocoded — usually because no city or state was recorded. Click to see their staff and stories.</p>
+      <div class="loc-grid" id="mapUnplacedGrid"></div>
+    </div>
   </section>
 </main>
 
@@ -1104,10 +1109,14 @@ function renderMap(){
   mapMarkers = [];
   const names = locationNames();
   $('mapEmpty').style.display = names.length ? 'none' : 'block';
+
   const bounds = [];
+  const unplaced = [];   // geocoded but no result found
+
   names.forEach(name => {
     const coords = GEO_CACHE[name];
-    if(!coords) return;
+    if(coords === null) { unplaced.push(name); return; }  // tried, failed
+    if(!coords) return;                                    // not geocoded yet — skip for now
     const d = locationData(name);
     const pCount = d.people.length, iCount = d.items.length;
     const tip = [
@@ -1124,8 +1133,27 @@ function renderMap(){
     mapMarkers.push(m);
     bounds.push([coords.lat, coords.lng]);
   });
+
   if(bounds.length > 1) leafletMap.fitBounds(bounds, { padding: [50, 50] });
   else if(bounds.length === 1) leafletMap.setView(bounds[0], 8);
+
+  // Show cards for locations that couldn't be geocoded
+  const unplacedWrap = $('mapUnplaced');
+  if(unplaced.length){
+    $('mapUnplacedGrid').innerHTML = unplaced.map(name => {
+      const d = locationData(name);
+      const stats = [];
+      if(d.people.length) stats.push(`${d.people.length} ${d.people.length===1?'person':'people'}`);
+      if(d.items.length) stats.push(`${d.items.length} item${d.items.length===1?'':'s'}`);
+      return `<button class="loc-card" data-location="${esc(name)}">
+        <div class="loc-pin">📍 ${esc(name)}</div>
+        <div class="loc-stats" style="margin-top:6px">${stats.join(' · ') || 'No records yet'}</div>
+      </button>`;
+    }).join('');
+    unplacedWrap.style.display = 'block';
+  } else {
+    unplacedWrap.style.display = 'none';
+  }
 }
 
 async function geocodeAll(){
