@@ -327,9 +327,8 @@
   .footer-correction-btn:hover { background: var(--yellow); color: var(--black); }
   .footer-note { color: var(--graphite); font-size: 0.75rem; margin-top: 26px; }
 
-  /* ============ MAP ============ */
-  #view-map { padding-top: 20px; }
-  #mapEl { height: 560px; border-radius: 6px; border: 1px solid var(--gray); background: var(--soft); }
+  /* ============ MAP (top of Locations view) ============ */
+  #mapEl { height: 460px; border-radius: 6px; border: 1px solid var(--gray); background: var(--soft); margin-top: 20px; }
   .map-hint { text-align: center; color: var(--graphite); font-size: .8rem; padding: 8px 0 0; }
   .leaflet-tooltip { font-family: 'Inter', sans-serif; font-size: .82rem; border-radius: 4px; border: 1px solid var(--gray) !important; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
   .leaflet-tooltip-top::before { border-top-color: var(--gray) !important; }
@@ -375,7 +374,6 @@
     <button class="nav-btn" data-view="gallery" data-set="navGallery">Gallery</button>
     <button class="nav-btn" data-view="people" data-set="navPeople">People</button>
     <button class="nav-btn" data-view="locations" data-set="navLocations">Locations</button>
-    <button class="nav-btn" data-view="map" data-set="navMap">Map</button>
     <button class="nav-btn submit-cta" id="submitBtn" data-set="submitLabel">Share Your Story</button>
   </nav>
 </header>
@@ -442,10 +440,12 @@
     </div>
   </section>
 
-  <!-- LOCATIONS VIEW -->
+  <!-- LOCATIONS VIEW (map on top, city cards below) -->
   <section class="view" id="view-locations">
     <div id="locationsIndex">
-      <div class="loc-grid" id="locationsGrid"></div>
+      <div id="mapEl"></div>
+      <div class="map-hint">Zoom and click a pin on the map, or pick a city from the cards below</div>
+      <div class="loc-grid" id="locationsGrid" style="padding-top:20px"></div>
       <div class="empty-state" id="locationsEmpty" style="display:none">
         <div class="big">No locations yet</div>
         <div>Locations appear here once staff service records or tagged photos include a place.</div>
@@ -462,21 +462,6 @@
       <div id="locRoster"></div>
       <div id="locItemsLabel" class="section-label" style="display:none">Photos &amp; stories from here</div>
       <div class="grid" id="locGrid" style="padding-top:4px"></div>
-    </div>
-  </section>
-
-  <!-- MAP VIEW -->
-  <section class="view" id="view-map">
-    <div id="mapEl"></div>
-    <div class="map-hint">Click a pin to see staff and stories from that location &middot; New locations are geocoded automatically</div>
-    <div class="empty-state" id="mapEmpty" style="display:none">
-      <div class="big">No locations yet</div>
-      <div>Add staff service records or tag photos with a location to see them on the map.</div>
-    </div>
-    <div id="mapUnplaced" style="display:none">
-      <div class="section-label" style="margin-top:28px">Locations not on the map</div>
-      <p style="font-size:.82rem;color:var(--graphite);margin-bottom:12px">These place names couldn't be geocoded — usually because no city or state was recorded. Click to see their staff and stories.</p>
-      <div class="loc-grid" id="mapUnplacedGrid"></div>
     </div>
   </section>
 </main>
@@ -575,7 +560,6 @@ const SETTINGS_SCHEMA = [
   { key:"navGallery",     label:"Tab 2 label" },
   { key:"navPeople",      label:"Tab 3 label" },
   { key:"navLocations",   label:"Tab 4 label" },
-  { key:"navMap",         label:"Tab 5 label (Map)" },
   { section: "Hero (top of page)" },
   { key:"heroHeading",    label:"Big headline", type:"textarea" },
   { key:"heroHighlight",  label:"Highlighted words (shown in yellow)" },
@@ -1102,21 +1086,25 @@ function initMap(){
 }
 
 function renderMap(){
-  if(!window.L || !$('view-map').classList.contains('active')) return;
+  // Map lives inside the Locations index — only render when that's showing.
+  if(!window.L) return;
+  if(!$('view-locations').classList.contains('active')) return;
+  if($('locationDetail').style.display !== 'none') return;
+  const names = locationNames();
+  // No locations at all: hide the map + hint, let the empty state show below.
+  $('mapEl').style.display = names.length ? 'block' : 'none';
+  document.querySelector('#locationsIndex .map-hint').style.display = names.length ? 'block' : 'none';
+  if(!names.length) return;
+
   initMap();
   leafletMap.invalidateSize();
   mapMarkers.forEach(m => leafletMap.removeLayer(m));
   mapMarkers = [];
-  const names = locationNames();
-  $('mapEmpty').style.display = names.length ? 'none' : 'block';
 
   const bounds = [];
-  const unplaced = [];   // geocoded but no result found
-
   names.forEach(name => {
     const coords = GEO_CACHE[name];
-    if(coords === null) { unplaced.push(name); return; }  // tried, failed
-    if(!coords) return;                                    // not geocoded yet — skip for now
+    if(!coords) return;   // not geocoded yet, or no result — the card below still lists it
     const d = locationData(name);
     const pCount = d.people.length, iCount = d.items.length;
     const tip = [
@@ -1136,24 +1124,6 @@ function renderMap(){
 
   if(bounds.length > 1) leafletMap.fitBounds(bounds, { padding: [50, 50] });
   else if(bounds.length === 1) leafletMap.setView(bounds[0], 8);
-
-  // Show cards for locations that couldn't be geocoded
-  const unplacedWrap = $('mapUnplaced');
-  if(unplaced.length){
-    $('mapUnplacedGrid').innerHTML = unplaced.map(name => {
-      const d = locationData(name);
-      const stats = [];
-      if(d.people.length) stats.push(`${d.people.length} ${d.people.length===1?'person':'people'}`);
-      if(d.items.length) stats.push(`${d.items.length} item${d.items.length===1?'':'s'}`);
-      return `<button class="loc-card" data-location="${esc(name)}">
-        <div class="loc-pin">📍 ${esc(name)}</div>
-        <div class="loc-stats" style="margin-top:6px">${stats.join(' · ') || 'No records yet'}</div>
-      </button>`;
-    }).join('');
-    unplacedWrap.style.display = 'block';
-  } else {
-    unplacedWrap.style.display = 'none';
-  }
 }
 
 async function geocodeAll(){
@@ -1279,8 +1249,9 @@ function switchView(name){
   // The hero greeting only shows on the Timeline (home); hidden elsewhere.
   if(name === "timeline"){ $("hero").style.display = ""; startHeroTimer(); }
   else { $("hero").style.display = "none"; clearInterval(heroTimer); }
-  // Map needs a tick for the container to be visible before sizing/rendering.
-  if(name === "map") setTimeout(renderMap, 60);
+  // Map lives in the Locations index; it needs a tick for its container to be
+  // visible before Leaflet can size the tiles correctly.
+  if(name === "locations") setTimeout(renderMap, 60);
 }
 function renderAll(){
   renderHeroCarousel();
@@ -1370,7 +1341,7 @@ document.addEventListener("click", e => {
   if(nav){
     switchView(nav.dataset.view);
     if(nav.dataset.view==="people"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; }
-    if(nav.dataset.view==="locations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; }
+    if(nav.dataset.view==="locations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; setTimeout(renderMap, 60); }
     return;
   }
 
@@ -1406,7 +1377,7 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "backToPeople"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; return; }
-  if(e.target.id === "backToLocations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; return; }
+  if(e.target.id === "backToLocations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; setTimeout(renderMap, 60); return; }
   if(e.target.dataset.close){ if(e.target.dataset.close==="modalOverlay") closeModal(); else $(e.target.dataset.close).classList.remove("open"); return; }
   if(e.target.id === "modalOverlay"){ closeModal(); return; }
   if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
