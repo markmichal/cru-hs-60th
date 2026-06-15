@@ -6,6 +6,7 @@
 <title>Cru High School — 60 Years of Stories</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   :root {
     --yellow: #FFD000;
@@ -326,6 +327,14 @@
   .footer-correction-btn:hover { background: var(--yellow); color: var(--black); }
   .footer-note { color: var(--graphite); font-size: 0.75rem; margin-top: 26px; }
 
+  /* ============ MAP ============ */
+  #view-map { padding-top: 20px; }
+  #mapEl { height: 560px; border-radius: 6px; border: 1px solid var(--gray); background: var(--soft); }
+  .map-hint { text-align: center; color: var(--graphite); font-size: .8rem; padding: 8px 0 0; }
+  .leaflet-tooltip { font-family: 'Inter', sans-serif; font-size: .82rem; border-radius: 4px; border: 1px solid var(--gray) !important; box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+  .leaflet-tooltip-top::before { border-top-color: var(--gray) !important; }
+  @media (max-width: 640px) { #mapEl { height: 400px; } }
+
   @media (max-width: 640px) {
     .t-event { width: 200px; }
     .t-card { width: 180px; }
@@ -366,6 +375,7 @@
     <button class="nav-btn" data-view="gallery" data-set="navGallery">Gallery</button>
     <button class="nav-btn" data-view="people" data-set="navPeople">People</button>
     <button class="nav-btn" data-view="locations" data-set="navLocations">Locations</button>
+    <button class="nav-btn" data-view="map" data-set="navMap">Map</button>
     <button class="nav-btn submit-cta" id="submitBtn" data-set="submitLabel">Share Your Story</button>
   </nav>
 </header>
@@ -454,6 +464,16 @@
       <div class="grid" id="locGrid" style="padding-top:4px"></div>
     </div>
   </section>
+
+  <!-- MAP VIEW -->
+  <section class="view" id="view-map">
+    <div id="mapEl"></div>
+    <div class="map-hint">Click a pin to see staff and stories from that location &middot; New locations are geocoded automatically</div>
+    <div class="empty-state" id="mapEmpty" style="display:none">
+      <div class="big">No locations yet</div>
+      <div>Add staff service records or tag photos with a location to see them on the map.</div>
+    </div>
+  </section>
 </main>
 
 <footer>
@@ -502,6 +522,7 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* =====================================================================
    CONFIG
@@ -549,6 +570,7 @@ const SETTINGS_SCHEMA = [
   { key:"navGallery",     label:"Tab 2 label" },
   { key:"navPeople",      label:"Tab 3 label" },
   { key:"navLocations",   label:"Tab 4 label" },
+  { key:"navMap",         label:"Tab 5 label (Map)" },
   { section: "Hero (top of page)" },
   { key:"heroHeading",    label:"Big headline", type:"textarea" },
   { key:"heroHighlight",  label:"Highlighted words (shown in yellow)" },
@@ -583,6 +605,13 @@ let editing = false;
 let HERO = [];              // photos tagged "Featured" for the hero carousel
 let heroIdx = 0;
 let heroTimer = null;
+
+/* Map state */
+const GEO_CACHE = {};       // location name → {lat,lng} or null (failed)
+const GEO_LS_KEY = 'cruhs60_geo_v1';
+let leafletMap = null;
+let mapMarkers = [];
+let cruPin = null;
 
 /* ============ HELPERS ============ */
 const $ = id => document.getElementById(id);
@@ -1039,6 +1068,87 @@ function showLocation(name){
   switchView("locations");
 }
 
+/* ============ MAP ============ */
+function loadGeoCache(){
+  try { Object.assign(GEO_CACHE, JSON.parse(localStorage.getItem(GEO_LS_KEY) || '{}')); } catch(e) {}
+}
+function saveGeoCache(){
+  try { localStorage.setItem(GEO_LS_KEY, JSON.stringify(GEO_CACHE)); } catch(e) {}
+}
+
+function getPin(){
+  if(!cruPin && window.L) cruPin = L.divIcon({
+    className: '',
+    html: '<svg width="22" height="32" viewBox="0 0 22 32" xmlns="http://www.w3.org/2000/svg"><path d="M11 0C4.9 0 0 4.9 0 11c0 8.25 11 21 11 21S22 19.25 22 11C22 4.9 17.1 0 11 0z" fill="#007990" stroke="white" stroke-width="1.5"/><circle cx="11" cy="11" r="4" fill="white"/></svg>',
+    iconSize: [22, 32],
+    iconAnchor: [11, 32],
+    popupAnchor: [0, -32]
+  });
+  return cruPin;
+}
+
+function initMap(){
+  if(leafletMap || !window.L) return;
+  leafletMap = L.map('mapEl').setView([38, -96], 4);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 18
+  }).addTo(leafletMap);
+}
+
+function renderMap(){
+  if(!window.L || !$('view-map').classList.contains('active')) return;
+  initMap();
+  leafletMap.invalidateSize();
+  mapMarkers.forEach(m => leafletMap.removeLayer(m));
+  mapMarkers = [];
+  const names = locationNames();
+  $('mapEmpty').style.display = names.length ? 'none' : 'block';
+  const bounds = [];
+  names.forEach(name => {
+    const coords = GEO_CACHE[name];
+    if(!coords) return;
+    const d = locationData(name);
+    const pCount = d.people.length, iCount = d.items.length;
+    const tip = [
+      pCount ? `${pCount} ${pCount===1?'person':'people'}` : '',
+      iCount ? `${iCount} item${iCount===1?'':'s'}` : ''
+    ].filter(Boolean).join(' · ');
+    const m = L.marker([coords.lat, coords.lng], { icon: getPin(), title: name })
+      .bindTooltip(
+        `<strong>${esc(name)}</strong>${tip ? '<br><span style="color:#585652">' + esc(tip) + '</span>' : ''}`,
+        { direction: 'top', offset: [0, -28] }
+      )
+      .on('click', () => showLocation(name))
+      .addTo(leafletMap);
+    mapMarkers.push(m);
+    bounds.push([coords.lat, coords.lng]);
+  });
+  if(bounds.length > 1) leafletMap.fitBounds(bounds, { padding: [50, 50] });
+  else if(bounds.length === 1) leafletMap.setView(bounds[0], 8);
+}
+
+async function geocodeAll(){
+  const names = locationNames();
+  const todo = names.filter(n => !(n in GEO_CACHE));
+  for(let i = 0; i < todo.length; i++){
+    const name = todo[i];
+    try{
+      const r = await fetch(
+        'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(name) +
+        '&format=json&limit=1&email=mark.michal%40cru.org'
+      );
+      const d = await r.json();
+      GEO_CACHE[name] = d[0] ? { lat: parseFloat(d[0].lat), lng: parseFloat(d[0].lon) } : null;
+    }catch(e){
+      GEO_CACHE[name] = null;
+    }
+    saveGeoCache();
+    renderMap();
+    if(i < todo.length - 1) await new Promise(r => setTimeout(r, 1100));
+  }
+}
+
 /* ============ DETAIL MODAL ============ */
 function closeModal(){
   $("modalOverlay").classList.remove("open");
@@ -1141,6 +1251,8 @@ function switchView(name){
   // The hero greeting only shows on the Timeline (home); hidden elsewhere.
   if(name === "timeline"){ $("hero").style.display = ""; startHeroTimer(); }
   else { $("hero").style.display = "none"; clearInterval(heroTimer); }
+  // Map needs a tick for the container to be visible before sizing/rendering.
+  if(name === "map") setTimeout(renderMap, 60);
 }
 function renderAll(){
   renderHeroCarousel();
@@ -1149,6 +1261,7 @@ function renderAll(){
   renderGallery();
   renderPeople();
   renderLocations();
+  geocodeAll();   // background: fills GEO_CACHE from Nominatim, re-renders map as each resolves
 }
 
 /* ============ HERO PHOTO CAROUSEL ============ */
@@ -1304,6 +1417,7 @@ document.addEventListener("keydown", e => {
 
 /* ============ INIT ============ */
 (async function init(){
+  loadGeoCache();
   settingDefaults();
   await loadData();
   applySettings();
