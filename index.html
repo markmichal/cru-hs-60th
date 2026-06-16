@@ -116,10 +116,12 @@
   .hero.carousel-on .hero-carousel { display: block; position: absolute; inset: 0; z-index: 0; }
   /* caption now holds ONLY the "View this photo" button, over the photo's corner */
   .hero.carousel-on .hero-caption { display: block; position: absolute; right: 14px; bottom: 14px; z-index: 3; }
-  .hc-btn { background: var(--yellow); color: var(--black); border: none; border-radius: 4px;
-    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.82rem; padding: 9px 16px; cursor: pointer;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.28); transition: background 0.15s; }
-  .hc-btn:hover { background: var(--lemon); }
+  /* Outline button. Sits over a photo, so a faint dark backdrop keeps the
+     yellow outline + text readable on any image; fills yellow on hover. */
+  .hc-btn { background: rgba(0,0,0,0.42); color: var(--yellow); border: 1.5px solid var(--yellow); border-radius: 4px;
+    font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.82rem; padding: 8px 15px; cursor: pointer;
+    -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); box-shadow: 0 2px 10px rgba(0,0,0,0.3); transition: all 0.15s; }
+  .hc-btn:hover { background: var(--yellow); color: var(--black); }
   .hero.carousel-on .hero-dots { display: flex; gap: 9px; position: absolute; left: 14px; bottom: 20px; z-index: 3; }
   .hero-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.25); padding: 0; cursor: pointer; transition: background 0.2s, transform 0.2s; }
   .hero-dot:hover { background: #fff; }
