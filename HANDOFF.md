@@ -8,6 +8,9 @@
 - **Locations map** (`index.html`): Map merged INTO the Locations tab — interactive Leaflet/OpenStreetMap on top, city cards below. Locations auto-geocoded via Nominatim (cached in localStorage); pins and cards both open the location detail page. Ungeocoded places have no pin but still appear as cards. No API key needed.
 - **History intake page** (`history-intake.html`): PIN-gated (PIN 1951, same as staff intake). For Tom — paste freeform ministry-history notes → Claude parse → editable preview table (Title, Year, Location, People, Type dropdown, Story, On Timeline checkbox; photos handled separately via a shared Drive folder) → submit appends rows to the master timeline tab with Approved=FALSE.
 - **Apps Script** (`apps-script-reference.gs`): Five actions — `saveSettings`, `parseNotes`, `addStints`, `parseHistory`, `addHistoryEvents`. All AI calls use Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) via the Anthropic Messages API. LLM call refactored into one shared `anthropicCall()` helper; `addHistoryEvents` matches master-tab headers by case-insensitive substring and creates Approved/Submitted By/Submitted At columns if missing.
+- **Hero redesign** (`index.html`): Featured-photo hero is a split layout (title/text beside the photo carousel, no text over the image); the photo caption is just an outline "View this photo" button.
+- **Social share preview** (`index.html`): Open Graph + Twitter Card meta tags after `<title>` so links unfurl with a rich preview (title, description, image) when shared via text/email/Slack/social.
+- **Custom domain**: a `CNAME` file points the site at `highschoolhistory.thecru.life` (the `markmichal.github.io/cru-hs-60th/` URL still works too).
 
 ### Still needs (owner action, not code)
 1. **Redeploy the Apps Script** (required for the History intake AND for the staff intake to work): paste the updated `apps-script-reference.gs` into the Sheet → Apps Script editor → save → Deploy → Manage deployments → New version. URL stays the same.
@@ -15,9 +18,9 @@
 3. Smoke-test `intake.html` and `history-intake.html` end-to-end with a real note.
 
 ### URLs
-- Site: https://markmichal.github.io/cru-hs-60th/
-- Staff intake: https://markmichal.github.io/cru-hs-60th/intake.html
-- History intake: https://markmichal.github.io/cru-hs-60th/history-intake.html
+- Site: https://highschoolhistory.thecru.life (also https://markmichal.github.io/cru-hs-60th/)
+- Staff intake: https://highschoolhistory.thecru.life/intake.html
+- History intake: https://highschoolhistory.thecru.life/history-intake.html
 
 ---
 
