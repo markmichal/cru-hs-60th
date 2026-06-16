@@ -8,6 +8,9 @@
  *   3. addStints         — staff intake "Add to spreadsheet" (PIN 1951)
  *   4. parseHistory      — history intake "Parse my notes"   (PIN 1951, AI)
  *   5. addHistoryEvents  — history intake "Add to spreadsheet"(PIN 1951)
+ *   6. photo renaming    — auto-names uploaded photos by Title/Year/People
+ *                          (form-submit trigger + "Cru 60th" menu; see the
+ *                          PHOTO RENAMING section near the bottom for setup)
  *
  * --------------------------------------------------------------------------
  * SETUP — do this once (≈5 minutes). Plain-language steps:
@@ -40,6 +43,11 @@
  *
  * Test the staff intake from /intake.html and the history intake from
  * /history-intake.html by pasting a note and clicking "Parse my notes".
+ *
+ * E) (OPTIONAL) TURN ON AUTOMATIC PHOTO RENAMING
+ *    See the "PHOTO RENAMING" section near the bottom of this file for the
+ *    one-time steps: add an "On form submit" trigger and approve the new
+ *    Google Drive permission. Skip this if you don't want photo renaming.
  * --------------------------------------------------------------------------
  * NOTE ON PINS: these must match the website CONFIG.
  *   EDIT_PIN   6060  (index.html CONFIG.EDIT_PIN)            — page editor
@@ -51,6 +59,7 @@ const INTAKE_PIN   = "1951";
 const SETTINGS_TAB = "Site Settings";
 const STAFF_TAB    = "Staff Service";
 const MASTER_TAB   = "Cru HS 60th Anniversary Timeline (master)";
+const FORM_TAB     = "Form Responses 2";   // public "Share Your Story" submissions
 
 // Header row written when the Staff Service tab is first created. Order matters:
 // the last two columns are internal provenance and are never shown on the site.
@@ -393,3 +402,128 @@ const HISTORY_PARSER_PROMPT =
   "onTimeline (true only for major organizational milestones, false otherwise). " +
   "If the notes describe multiple distinct events return multiple objects. " +
   "If nothing clear can be extracted return []. Never invent facts not in the notes.";
+
+/* =====================================================================
+   PHOTO RENAMING  (gives uploaded images meaningful, recognizable names)
+   ---------------------------------------------------------------------
+   Two pieces, both using the SAME extra Drive permission:
+     • onFormSubmitRenamePhoto — fires automatically on each public-form
+       submission and renames the just-uploaded photo from the Title /
+       Year / People the submitter entered.
+     • renameLinkedPhotos      — a "Cru 60th" menu item that scans the
+       timeline + form tabs and renames every already-linked photo
+       (cleans up the backlog AND Tom's folder photos once linked).
+
+   Renaming is by the file's Drive ID, so the link in the sheet and the
+   photo on the website are UNAFFECTED — only the file's name changes.
+
+   EXTRA SETUP for this feature (one time):
+     1. After pasting + saving this script, in the Apps Script editor click
+        "Triggers" (the alarm-clock icon on the left) → "Add Trigger":
+           - Choose function:        onFormSubmitRenamePhoto
+           - Event source:           From spreadsheet
+           - Event type:             On form submit
+        Save. Approve the permissions prompt (it now asks for Google Drive
+        access so it can rename files — this is expected and new).
+     2. The "Cru 60th → Rename linked photos" menu appears at the top of the
+        Sheet after a reload. The first time you run it, approve the same
+        Drive permission. Run it once to clean up existing photos.
+   Note: the account running the script must have edit access to the photo
+   files (true when they live in your own Drive / the form's response folder).
+===================================================================== */
+
+// Build a clean, filesystem-safe name like "1972 — First SV Camp — Dave Hughes.jpg".
+function buildPhotoName(year, title, people, idx, ext){
+  let base = [year, title, people]
+    .map(clean).filter(Boolean).join(" — ")
+    .replace(/[\\/:*?"<>|\n\r]+/g, "-")
+    .replace(/\s+/g, " ").trim()
+    .slice(0, 110);
+  if(!base) base = "Cru High School photo";
+  if(idx > 0) base += " (" + (idx + 1) + ")";   // 2nd+ file in the same submission
+  return ext ? base + "." + ext : base;
+}
+
+// All Drive file IDs found in a cell value (a form upload column may hold several).
+function driveFileIds(v){
+  const s = String(v == null ? "" : v);
+  const ids = [];
+  const re = /(?:\/d\/|[?&]id=)([-\w]{20,})/g;
+  let m;
+  while((m = re.exec(s)) !== null) ids.push(m[1]);
+  if(!ids.length){ const b = s.trim().match(/^[-\w]{20,}$/); if(b) ids.push(b[0]); }
+  return ids;
+}
+
+// Keep the original extension; fall back to one derived from the MIME type.
+function fileExt(file){
+  const m = file.getName().match(/\.([A-Za-z0-9]{1,5})$/);
+  if(m) return m[1];
+  const mime = file.getMimeType() || "";
+  if(mime === "image/jpeg") return "jpg";
+  if(mime === "image/png")  return "png";
+  if(mime === "image/gif")  return "gif";
+  if(mime === "image/webp") return "webp";
+  if(mime === "application/pdf") return "pdf";
+  return "";
+}
+
+// Rename one file by ID. Returns the new name, or "" if it couldn't (no access etc.).
+function renamePhotoFile(id, year, title, people, idx){
+  try{
+    const file = DriveApp.getFileById(id);
+    const name = buildPhotoName(year, title, people, idx, fileExt(file));
+    if(file.getName() !== name) file.setName(name);
+    return name;
+  }catch(err){ return ""; }   // skip quietly — e.g. not found or not editable
+}
+
+// Installable "on form submit" trigger (see EXTRA SETUP above). Renames the
+// photo a public submitter just uploaded, using the fields from that response.
+function onFormSubmitRenamePhoto(e){
+  if(!e || !e.namedValues) return;
+  const nv = e.namedValues;
+  const get = function(sub){
+    for(const k in nv){
+      if(k.toLowerCase().indexOf(sub) >= 0){
+        const a = nv[k];
+        return Array.isArray(a) ? a.join(", ") : String(a || "");
+      }
+    }
+    return "";
+  };
+  const ids = driveFileIds(get("photo"));   // the "Upload your photo or flyer" column
+  ids.forEach(function(id, i){ renamePhotoFile(id, get("year"), get("title"), get("people"), i); });
+}
+
+// Adds the reviewer menu when the Sheet opens.
+function onOpen(){
+  SpreadsheetApp.getUi()
+    .createMenu("Cru 60th")
+    .addItem("Rename linked photos", "renameLinkedPhotos")
+    .addToUi();
+}
+
+// Scan the timeline + form tabs and rename every linked photo to match its row.
+function renameLinkedPhotos(){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let total = 0, done = 0;
+  [MASTER_TAB, FORM_TAB].forEach(function(tabName){
+    const sheet = ss.getSheetByName(tabName);
+    if(!sheet || sheet.getLastRow() < 2) return;
+    const values  = sheet.getDataRange().getValues();
+    const headers = values[0].map(function(h){ return String(h).toLowerCase().trim(); });
+    const col = function(sub){ for(var i=0;i<headers.length;i++){ if(headers[i].indexOf(sub)>=0) return i; } return -1; };
+    const cPhoto = col("photo"), cT = col("title"), cY = col("year"), cP = col("people");
+    if(cPhoto < 0) return;
+    for(var r = 1; r < values.length; r++){
+      const row = values[r];
+      const ids = driveFileIds(row[cPhoto]);
+      if(!ids.length) continue;
+      const yr = cY>=0?row[cY]:"", ti = cT>=0?row[cT]:"", pe = cP>=0?row[cP]:"";
+      if(![yr, ti, pe].some(function(v){ return String(v||"").trim(); })) continue;  // nothing to name it with
+      ids.forEach(function(id, i){ total++; if(renamePhotoFile(id, yr, ti, pe, i)) done++; });
+    }
+  });
+  SpreadsheetApp.getUi().alert("Renamed " + done + " of " + total + " linked photo file(s).");
+}
