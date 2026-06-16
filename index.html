@@ -915,7 +915,7 @@ function applyFilters(){
     if(filters.person && !peopleList(d).includes(filters.person)) return false;
     if(filters.type && d.type !== filters.type) return false;
     if(q){
-      const hay = `${d.title} ${d.story} ${d.location} ${d.people}`.toLowerCase();
+      const hay = `${d.title} ${d.story} ${d.location} ${d.people} ${d.year || ""}`.toLowerCase();
       if(!hay.includes(q)) return false;
     }
     return true;
