@@ -2,9 +2,11 @@
 
 ## Status as of 2026-06-18
 
-There are now **two working versions** of the site (same Google Sheet as the data source):
-1. **GitHub Pages** (this repo) — the public site, fast, clean custom domain, no banner.
-2. **Apps Script "Site 2"** — an all-Google-Workspace port (separate project, see below). Fully working; kept as a fallback in case Cru policy requires hosting to stay inside Google.
+**Current direction: working from GitHub (this repo). Apps Script "Site 2" is shelved for now — but fully built and preserved, so it can be revived if Cru policy later requires all-Google hosting.**
+
+There are two working versions of the site (same Google Sheet as the data source):
+1. **GitHub Pages** (this repo) — the active/public site, fast, clean custom domain, no banner. **All new work happens here.**
+2. **Apps Script "Site 2"** — an all-Google-Workspace port (separate project, see below). Fully working but **shelved for now**; kept as a fallback in case Cru policy requires hosting to stay inside Google.
 
 ---
 
@@ -44,6 +46,7 @@ There are now **two working versions** of the site (same Google Sheet as the dat
 
 ## In progress / pending decision
 - **Hosting decision is with Cru (policy, not technical)**: can the public site live on GitHub Pages (outside Google), or must it stay inside Google (use Site 2)? Both versions are built and working, so we're not blocked either way.
+- **Current lean (as of 2026-06-18): proceed on GitHub Pages.** Site 2 is likely to be abandoned for now, but is preserved and revivable if the policy answer changes. Treat GitHub as the source of truth for ongoing work.
 
 ---
 
