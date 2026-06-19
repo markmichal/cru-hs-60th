@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Share Your Story — Cru High School 60th</title>
+<meta name="description" content="Share a photo, flyer, or video and the story behind it. 60 years of Cru High School Ministry.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --yellow:#FFD000; --lemon:#FFE378; --black:#000; --white:#fff; --gray:#DEDEDE;
+    --orange:#F08220; --vermilion:#D34400; --cyan:#00C3D8; --turquoise:#007990;
+    --graphite:#585652; --soft:#F7F6F2;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:'Inter',sans-serif; background:var(--soft); color:var(--black); min-height:100vh; font-size:1.05rem; line-height:1.5;}
+  button{font-family:inherit; cursor:pointer;}
+  a{color:var(--turquoise);}
+
+  header{
+    background:rgba(255,255,255,.96); border-bottom:3px solid var(--yellow);
+    padding:16px 28px; display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:20;
+  }
+  .badge-60{width:50px; height:50px; border-radius:50%; background:var(--yellow); color:var(--black);
+    display:flex; align-items:center; justify-content:center; font-family:'Sora',sans-serif; font-weight:800; font-size:1.05rem; flex-shrink:0;}
+  header h1{font-family:'Sora',sans-serif; font-weight:800; font-size:1.2rem; line-height:1.1;}
+  header .sub{font-family:'Sora',sans-serif; font-size:.66rem; font-weight:600; letter-spacing:.16em; text-transform:uppercase; color:var(--graphite);}
+
+  main{max-width:780px; margin:0 auto; padding:26px 20px 110px;}
+
+  .card{background:var(--white); border:1px solid var(--gray); border-radius:10px; padding:26px; box-shadow:0 1px 5px rgba(0,0,0,.06); margin-bottom:20px;}
+  h2{font-family:'Sora',sans-serif; font-weight:800; font-size:1.7rem; letter-spacing:-.02em; margin-bottom:8px; line-height:1.12;}
+  .lead{color:var(--graphite); font-size:1.05rem; line-height:1.6; margin-bottom:20px;}
+  label{display:block; font-size:.95rem; font-weight:700; color:var(--black); margin-bottom:7px;}
+  input[type=text], textarea, select{
+    width:100%; background:var(--white); border:2px solid var(--gray); border-radius:8px;
+    padding:14px 14px; font-family:'Inter',sans-serif; font-size:1.1rem; color:var(--black);
+  }
+  textarea{min-height:150px; resize:vertical; line-height:1.55;}
+  input:focus, textarea:focus, select:focus{outline:3px solid var(--yellow); outline-offset:1px; border-color:var(--yellow);}
+  .field{margin-bottom:18px;}
+  .hint{font-size:.95rem; color:var(--graphite); margin-top:7px; line-height:1.5;}
+
+  .btn{background:var(--yellow); color:var(--black); border:none; border-radius:8px;
+    padding:16px 30px; font-family:'Sora',sans-serif; font-weight:800; font-size:1.1rem; min-height:56px;}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn.dark{background:var(--black); color:var(--yellow);}
+  .btn.ghost{background:var(--white); border:2px solid var(--gray); color:var(--graphite); font-family:'Inter',sans-serif; font-weight:700;}
+  .btn.big{width:100%;}
+
+  .msg{padding:14px 16px; border-radius:8px; font-size:1rem; line-height:1.55; margin-top:16px; display:none;}
+  .msg.error{background:#fde8e0; border:1px solid var(--vermilion); color:var(--vermilion);}
+  .msg.ok{background:#e4f5ee; border:1px solid var(--turquoise); color:var(--turquoise);}
+
+  .spinner{display:inline-block; width:16px; height:16px; border:2px solid rgba(0,0,0,.25); border-top-color:var(--black); border-radius:50%; animation:spin .7s linear infinite; vertical-align:-3px; margin-right:8px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* ---------- Welcome video bar ---------- */
+  .welcome-bar{display:flex; align-items:center; gap:16px; background:var(--black); color:var(--white);
+    border-radius:10px; padding:12px 16px 12px 12px; margin-bottom:20px; box-shadow:0 1px 5px rgba(0,0,0,.12);}
+  .wb-thumb{position:relative; width:104px; height:64px; flex-shrink:0; border:none; padding:0; border-radius:7px; overflow:hidden; background:#222;}
+  .wb-thumb img{width:100%; height:100%; object-fit:cover; display:block;}
+  .wb-play{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:1.4rem; background:rgba(0,0,0,.28); text-shadow:0 1px 3px rgba(0,0,0,.6);}
+  .wb-text{flex:1; font-family:'Sora',sans-serif; font-weight:700; font-size:1.02rem; line-height:1.3;}
+  .wb-go{background:var(--yellow); color:var(--black); border:none; border-radius:7px; padding:11px 16px;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:.92rem; white-space:nowrap; min-height:auto;}
+
+  /* ---------- Collapsible service section ---------- */
+  .collapse-head{width:100%; text-align:left; background:var(--lemon); border:1px solid var(--yellow);
+    border-radius:10px; padding:18px 20px; display:flex; align-items:center; gap:12px;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:1.12rem; color:var(--black); line-height:1.3;}
+  .collapse-head .chev{margin-left:auto; font-size:1.1rem; transition:transform .2s; flex-shrink:0;}
+  .collapse-head[aria-expanded="true"] .chev{transform:rotate(180deg);}
+  .collapse-head .ch-sub{display:block; font-family:'Inter',sans-serif; font-weight:600; font-size:.92rem; color:var(--graphite); margin-top:3px;}
+  #serviceCard{padding:0; overflow:hidden;}
+  #serviceCard.open .collapse-head{border-radius:10px 10px 0 0;}
+  .collapse-body{padding:24px 26px 26px;}
+  .service-done{display:none; align-items:center; gap:12px; padding:20px 24px; background:#e4f5ee;
+    border:1px solid var(--turquoise); border-radius:10px; font-family:'Sora',sans-serif; font-weight:700;
+    font-size:1.08rem; color:var(--turquoise); margin-bottom:20px;}
+
+  /* ---------- Media (photo/flyer/video) ---------- */
+  .media-grid{display:flex; gap:16px; flex-wrap:wrap; align-items:stretch;}
+  .upload-box{flex:1; min-width:230px;}
+  .upload-btn{width:100%; min-height:150px; border:3px dashed var(--turquoise); background:#f0fbfc;
+    border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    color:var(--turquoise); font-family:'Sora',sans-serif; font-weight:800; font-size:1.15rem; padding:18px;}
+  .upload-btn .ic{font-size:2.4rem; line-height:1;}
+  .upload-btn .small{font-family:'Inter',sans-serif; font-weight:600; font-size:.92rem; color:var(--graphite);}
+  .link-box{flex:1; min-width:230px; display:flex; flex-direction:column; justify-content:center;}
+  .link-box .or{font-family:'Sora',sans-serif; font-weight:800; color:var(--graphite); font-size:.9rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;}
+  .link-row{display:flex; gap:10px;}
+  .link-row input{flex:1;}
+  .media-preview{display:none; margin-top:18px; padding:16px; border:1px solid var(--gray); border-radius:10px; background:var(--soft);}
+  .media-preview img{max-width:100%; max-height:280px; border-radius:8px; display:block; margin:0 auto;}
+  .media-preview .conf{display:flex; align-items:center; gap:10px; font-family:'Sora',sans-serif; font-weight:700; color:var(--turquoise); font-size:1.05rem;}
+  .media-preview .remove{margin-top:12px;}
+
+  /* ---------- Story + mic ---------- */
+  .story-wrap{position:relative;}
+  .mic-btn{display:inline-flex; align-items:center; gap:8px; background:var(--white); border:2px solid var(--turquoise);
+    color:var(--turquoise); border-radius:30px; padding:11px 20px; font-family:'Sora',sans-serif; font-weight:800;
+    font-size:1rem; margin-top:12px; min-height:auto;}
+  .mic-btn.rec{background:var(--vermilion); border-color:var(--vermilion); color:#fff; animation:pulse 1.2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.7;}}
+
+  /* ---------- Editable story preview ---------- */
+  .pv-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .pv-grid .full{grid-column:1 / -1;}
+  @media(max-width:560px){ .pv-grid{grid-template-columns:1fr;} }
+
+  /* ---------- Service preview table ---------- */
+  .preview-wrap{overflow-x:auto;}
+  table{border-collapse:collapse; width:100%; min-width:520px; margin-top:6px;}
+  th{font-family:'Sora',sans-serif; font-size:.78rem; letter-spacing:.04em; text-transform:uppercase; color:var(--graphite); text-align:left; padding:8px; border-bottom:2px solid var(--yellow);}
+  td{padding:6px; border-bottom:1px solid var(--gray); vertical-align:top;}
+  td input{padding:10px; font-size:1rem;}
+  td input.yr{max-width:90px;}
+  td.del{width:40px; text-align:center;}
+  .row-del{background:none; border:none; color:var(--vermilion); font-size:1.5rem; line-height:1; padding:4px 8px; min-height:auto;}
+  .tbl-actions{display:flex; gap:12px; align-items:center; margin-top:16px; flex-wrap:wrap;}
+
+  /* ---------- Nudge ---------- */
+  .nudge{display:none; margin-top:16px; padding:18px 20px; background:var(--lemon); border:1px solid var(--yellow); border-radius:10px;}
+  .nudge p{font-size:1.05rem; line-height:1.55; margin-bottom:14px;}
+  .nudge .row{display:flex; gap:12px; flex-wrap:wrap;}
+
+  /* ---------- Video lightbox ---------- */
+  .lightbox{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; padding:20px;}
+  .lightbox.show{display:flex;}
+  .lb-backdrop{position:absolute; inset:0; background:rgba(0,0,0,.82);}
+  .lb-inner{position:relative; width:100%; max-width:900px; z-index:1;}
+  .lb-video{position:relative; width:100%; padding-top:56.25%; background:#000; border-radius:10px; overflow:hidden;}
+  .lb-video iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
+  .lb-close{position:absolute; top:-52px; right:0; background:var(--white); color:var(--black); border:none;
+    border-radius:50%; width:42px; height:42px; font-size:1.4rem; line-height:1; min-height:auto; box-shadow:0 2px 8px rgba(0,0,0,.4);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="badge-60">60</div>
+  <div style="flex:1">
+    <h1>Share Your Story</h1>
+    <div class="sub">Cru High School · 60th Anniversary</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ===== Welcome video bar (hidden unless welcomeVideoUrl is set) ===== -->
+  <div class="welcome-bar" id="welcomeBar" style="display:none">
+    <button class="wb-thumb" id="wbThumb" aria-label="Play welcome video">
+      <img id="wbImg" alt="">
+      <span class="wb-play">&#9658;</span>
+    </button>
+    <div class="wb-text" id="wbLabel">New here? Watch a quick 60-second welcome.</div>
+    <button class="wb-go" id="wbGo">Watch</button>
+  </div>
+
+  <!-- ===== Service history (collapsed by default) ===== -->
+  <div class="card collapse" id="serviceCard">
+    <button class="collapse-head" id="serviceToggle" aria-expanded="false" aria-controls="serviceBody">
+      <span>📍 Did you serve with Cru High School?
+        <span class="ch-sub">Add your service history (takes 30 seconds)</span>
+      </span>
+      <span class="chev">&#9662;</span>
+    </button>
+    <div class="collapse-body" id="serviceBody" hidden>
+
+      <div class="service-done" id="serviceDone">✓ Thanks! Got your service history.</div>
+
+      <div id="serviceForm">
+        <p class="lead" style="margin-bottom:16px">Tell us where and when you served — in your own words. You can type it or tap the microphone and just say it.</p>
+
+        <div class="field">
+          <label for="serviceName">Your name</label>
+          <input type="text" id="serviceName" placeholder="e.g. Pat Johnson" autocomplete="name">
+        </div>
+
+        <div class="field">
+          <label for="serviceText">Where and when did you serve?</label>
+          <textarea id="serviceText" placeholder="Example: I was on staff in Tulsa from about 1985 to 1990, then in Denver until 1996."></textarea>
+          <button type="button" class="mic-btn" data-mic="serviceText">🎤 Speak instead</button>
+        </div>
+
+        <button class="btn" id="mapBtn">Map my journey</button>
+        <div class="msg error" id="serviceMsg"></div>
+      </div>
+
+      <!-- editable stints -->
+      <div id="servicePreview" style="display:none; margin-top:8px">
+        <p class="lead" style="margin:6px 0 10px">Here's what we heard. Fix anything, then submit. Leave a box blank if you're not sure.</p>
+        <div class="preview-wrap">
+          <table id="serviceTable">
+            <thead><tr>
+              <th>Location</th><th>Start year</th><th>End year</th><th>Role</th><th></th>
+            </tr></thead>
+            <tbody id="serviceBody2"></tbody>
+          </table>
+        </div>
+        <div class="tbl-actions">
+          <button class="btn ghost" id="addStintBtn">+ Add a place</button>
+          <button class="btn dark" id="submitServiceBtn">Submit my service history</button>
+        </div>
+        <div class="msg error" id="submitServiceMsg"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== Hero: share a photo, flyer, or video ===== -->
+  <div class="card" id="mediaCard">
+    <h2>Share a photo, flyer, or video</h2>
+    <p class="lead">Got an old photo, a camp flyer, or a video clip? Add it here. This is the heart of your story.</p>
+
+    <div class="media-grid">
+      <div class="upload-box">
+        <input type="file" id="fileInput" accept="image/*,video/*" style="display:none">
+        <button class="upload-btn" id="uploadBtn">
+          <span class="ic">📷</span>
+          <span>Add a Photo</span>
+          <span class="small">or a flyer or video — tap to choose</span>
+        </button>
+      </div>
+      <div class="link-box">
+        <div class="or">or paste a link</div>
+        <div class="link-row">
+          <input type="text" id="linkInput" placeholder="Paste a YouTube, Facebook, or Drive link">
+          <button class="btn ghost" id="addLinkBtn" style="padding:14px 18px">Add</button>
+        </div>
+        <div class="hint">Already online? Paste the link to the photo or video.</div>
+      </div>
+    </div>
+
+    <div class="media-preview" id="mediaPreview"></div>
+    <div class="msg error" id="mediaMsg"></div>
+  </div>
+
+  <!-- ===== Story ===== -->
+  <div class="card">
+    <h2>Now tell us about it</h2>
+    <p class="lead">What was happening? Who was there? Why does it matter to you? A sentence or two is plenty.</p>
+
+    <div class="field">
+      <label for="yourName">Your name <span style="font-weight:500; color:var(--graphite)">(so we can credit you)</span></label>
+      <input type="text" id="yourName" placeholder="e.g. Pat Johnson" autocomplete="name">
+    </div>
+
+    <div class="field story-wrap">
+      <label for="storyText">Your story</label>
+      <textarea id="storyText" placeholder="Tell us about a moment that mattered…"></textarea>
+      <button type="button" class="mic-btn" data-mic="storyText">🎤 Speak instead</button>
+    </div>
+
+    <button class="btn big dark" id="shareBtn">Share this story</button>
+
+    <!-- gentle no-photo nudge -->
+    <div class="nudge" id="nudge">
+      <p>Stories are so much richer with a photo — add one? You can also continue without.</p>
+      <div class="row">
+        <button class="btn" id="nudgeAdd">Add a photo</button>
+        <button class="btn ghost" id="nudgeSkip">Continue without a photo</button>
+      </div>
+    </div>
+
+    <div class="msg error" id="storyMsg"></div>
+  </div>
+
+  <!-- ===== Editable story preview ===== -->
+  <div class="card" id="storyPreviewCard" style="display:none">
+    <h2>Does this look right?</h2>
+    <p class="lead">We tidied your words into a short record. Change anything that's off, then share it. Nothing goes public until our team reviews it.</p>
+    <div class="pv-grid">
+      <div class="field"><label for="pvTitle">Title</label><input type="text" id="pvTitle"></div>
+      <div class="field"><label for="pvYear">Year</label><input type="text" id="pvYear" placeholder="e.g. 1985"></div>
+      <div class="field"><label for="pvLocation">Location</label><input type="text" id="pvLocation"></div>
+      <div class="field"><label for="pvPeople">People</label><input type="text" id="pvPeople" placeholder="Names, separated by commas"></div>
+      <div class="field"><label for="pvType">Type</label>
+        <select id="pvType"><option>Photo</option><option>Flyer</option><option>Story</option><option>Event</option></select>
+      </div>
+      <div class="field full"><label for="pvStory">The story</label><textarea id="pvStory"></textarea></div>
+    </div>
+    <div class="tbl-actions">
+      <button class="btn ghost" id="backBtn">Back</button>
+      <button class="btn dark" id="finalSubmitBtn">Share my story</button>
+    </div>
+    <div class="msg error" id="finalMsg"></div>
+  </div>
+
+  <!-- ===== Success ===== -->
+  <div class="card" id="successCard" style="display:none; text-align:center">
+    <div style="font-size:3rem; line-height:1; margin-bottom:8px">🎉</div>
+    <h2 id="successTitle">Thank you for sharing!</h2>
+    <p class="lead" id="successText" style="margin-bottom:20px">Your story is in. Our team will look it over before it appears on the site — we're grateful you took the time.</p>
+    <button class="btn" id="shareAnotherBtn">Share another</button>
+  </div>
+
+</main>
+
+<!-- ===== Video lightbox ===== -->
+<div class="lightbox" id="videoLightbox">
+  <div class="lb-backdrop" data-close></div>
+  <div class="lb-inner">
+    <button class="lb-close" data-close aria-label="Close">&times;</button>
+    <div class="lb-video" id="lbVideo"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG — must match index.html / the Apps Script
+   This page is PUBLIC (no PIN). It POSTs to the same Apps Script Web App.
+===================================================================== */
+const CONFIG = {
+  SHEET_ID:   "1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE",
+  SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
+  SETTINGS_TAB: "Site Settings",
+  TEXT_CAP: 6000,        // friendly cap on pasted/spoken text length
+  MAX_FILE_MB: 20        // friendly cap on uploaded file size
+};
+
+const $ = id => document.getElementById(id);
+const attr = s => String(s ?? "").replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function showMsg(id, text){ const el=$(id); el.textContent=text; el.style.display="block"; }
+function hideMsg(id){ $(id).style.display="none"; }
+
+/* ---------- POST helper (text/plain avoids a CORS preflight) ---------- */
+async function postAction(payload){
+  const res = await fetch(CONFIG.SCRIPT_URL, {
+    method:"POST",
+    headers:{ "Content-Type":"text/plain;charset=utf-8" },
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+function friendly(m){
+  if(/api key|ANTHROPIC|AI helper/i.test(m)) return "Our story helper is taking a quick break. Please try again in a little while.";
+  return "Sorry, something went wrong: " + m;
+}
+
+/* ---------- Auto-grow textareas ---------- */
+function autoGrow(ta){ ta.style.height="auto"; ta.style.height=(ta.scrollHeight+2)+"px"; }
+document.querySelectorAll("textarea").forEach(ta => ta.addEventListener("input", () => autoGrow(ta)));
+
+/* ---------- Keep the two name fields in sync (type once) ---------- */
+function syncNames(from, to){
+  $(from).addEventListener("input", () => { if(!$(to).value.trim()) $(to).value = $(from).value; });
+}
+syncNames("serviceName","yourName");
+syncNames("yourName","serviceName");
+
+/* =====================================================================
+   Video helpers (mirror index.html: YouTube + Google Drive links)
+===================================================================== */
+function videoEmbed(url){
+  if(!url) return null;
+  const s = String(url).trim();
+  const yt = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
+  if(yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  const dr = s.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  if(dr) return `https://drive.google.com/file/d/${dr[1]}/preview`;
+  return null;
+}
+// Best-effort: is a pasted LINK a video? (uploads are detected from the file type)
+function looksLikeVideo(url){
+  const s = String(url||"").toLowerCase();
+  if(/youtube\.com|youtu\.be|vimeo\.com|facebook\.com\/.*\/videos|fb\.watch|\.mp4|\.mov|\.webm/.test(s)) return true;
+  return false;
+}
+function driveImgUrl(url){
+  if(!url) return "";
+  const m = String(url).match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200` : url;
+}
+
+/* =====================================================================
+   Welcome video bar — reads welcomeVideoUrl / Thumb / Label from
+   the Site Settings tab. If the URL is empty, the bar stays hidden.
+===================================================================== */
+const DEFAULT_WELCOME_LABEL = "New here? Watch a quick 60-second welcome.";
+let welcomeVideoUrl = "";
+
+function parseGviz(txt){ return JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}")+1)); }
+
+async function loadWelcomeBar(){
+  try{
+    const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
+    const txt = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.SETTINGS_TAB)}`)).text();
+    const json = parseGviz(txt);
+    const S = {};
+    if(json.table){
+      json.table.rows.forEach(r => {
+        const k = r.c && r.c[0] ? String(r.c[0].v ?? "").trim() : "";
+        const v = r.c && r.c[1] ? String(r.c[1].v ?? "") : "";
+        if(k) S[k] = v;
+      });
+    }
+    welcomeVideoUrl = (S.welcomeVideoUrl || "").trim();
+    if(!welcomeVideoUrl) return;                 // no video set → bar stays hidden
+    const label = (S.welcomeVideoLabel || "").trim() || DEFAULT_WELCOME_LABEL;
+    let thumb = (S.welcomeVideoThumb || "").trim();
+    if(!thumb){                                  // derive a thumbnail from the video link
+      const yt = welcomeVideoUrl.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
+      const dr = welcomeVideoUrl.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
+      if(yt) thumb = `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`;
+      else if(dr) thumb = `https://drive.google.com/thumbnail?id=${dr[1]}&sz=w1200`;
+    } else { thumb = driveImgUrl(thumb); }
+    $("wbLabel").textContent = label;
+    if(thumb) $("wbImg").src = thumb; else $("wbThumb").style.display = "none";
+    $("welcomeBar").style.display = "flex";
+  }catch(e){ /* settings unreachable → just keep the bar hidden */ }
+}
+loadWelcomeBar();
+
+/* ---------- Lightbox ---------- */
+function openVideo(){
+  const embed = videoEmbed(welcomeVideoUrl);
+  if(!embed){ window.open(welcomeVideoUrl, "_blank"); return; }   // unknown host → open in a tab
+  $("lbVideo").innerHTML = `<iframe src="${attr(embed)}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  $("videoLightbox").classList.add("show");
+}
+function closeVideo(){ $("videoLightbox").classList.remove("show"); $("lbVideo").innerHTML = ""; }
+$("wbThumb").addEventListener("click", openVideo);
+$("wbGo").addEventListener("click", openVideo);
+$("videoLightbox").addEventListener("click", e => { if(e.target.dataset.close !== undefined) closeVideo(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeVideo(); });
+
+/* =====================================================================
+   Microphone (Web Speech API) — only shown where the browser supports it
+===================================================================== */
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+function setupMics(){
+  document.querySelectorAll("[data-mic]").forEach(btn => {
+    if(!SpeechRec){ btn.style.display = "none"; return; }   // hide where unsupported
+    const ta = $(btn.dataset.mic);
+    let rec = null, on = false, base = "";
+    btn.addEventListener("click", () => {
+      if(on){ rec && rec.stop(); return; }
+      rec = new SpeechRec();
+      rec.lang = "en-US"; rec.interimResults = true; rec.continuous = true;
+      base = ta.value;
+      rec.onresult = e => {
+        let interim = "", finalTxt = "";
+        for(let i = e.resultIndex; i < e.results.length; i++){
+          const t = e.results[i][0].transcript;
+          if(e.results[i].isFinal) finalTxt += t; else interim += t;
+        }
+        if(finalTxt) base = (base ? base + " " : "") + finalTxt.trim();
+        ta.value = base + (interim ? " " + interim : "");
+        autoGrow(ta);
+      };
+      const stop = () => { on = false; btn.classList.remove("rec"); btn.textContent = "🎤 Speak instead"; };
+      rec.onend = stop; rec.onerror = stop;
+      try{ rec.start(); on = true; btn.classList.add("rec"); btn.textContent = "● Listening… tap to stop"; }
+      catch(e){ stop(); }
+    });
+  });
+}
+setupMics();
+
+/* =====================================================================
+   SERVICE HISTORY (collapsible)
+===================================================================== */
+$("serviceToggle").addEventListener("click", () => {
+  const open = $("serviceToggle").getAttribute("aria-expanded") === "true";
+  $("serviceToggle").setAttribute("aria-expanded", String(!open));
+  $("serviceBody").hidden = open;
+  $("serviceCard").classList.toggle("open", !open);
+});
+
+$("mapBtn").addEventListener("click", async () => {
+  hideMsg("serviceMsg");
+  const name = $("serviceName").value.trim();
+  const text = $("serviceText").value.trim();
+  if(!name){ showMsg("serviceMsg","Please add your name first."); $("serviceName").focus(); return; }
+  if(!text){ showMsg("serviceMsg","Tell us where and when you served."); $("serviceText").focus(); return; }
+  if(text.length > CONFIG.TEXT_CAP){ showMsg("serviceMsg","That's a lot of text — could you shorten it a little?"); return; }
+
+  const btn = $("mapBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Mapping your journey…';
+  try{
+    const out = await postAction({ action:"parseServiceText", text });
+    if(!out.ok) throw new Error(out.error || "Couldn't read that.");
+    const stints = Array.isArray(out.stints) ? out.stints : [];
+    if(!stints.length){ showMsg("serviceMsg","We couldn't pick out any places. Try naming a city and a year or two."); return; }
+    renderStints(stints);
+  }catch(err){ showMsg("serviceMsg", friendly(err.message)); }
+  finally{ btn.disabled = false; btn.textContent = "Map my journey"; }
+});
+
+const STINT_FIELDS = ["location","startYear","endYear","role"];
+function stintRowHTML(s){
+  s = s || {};
+  return `<tr>
+    <td><input data-f="location" value="${attr(s.location)}"></td>
+    <td><input data-f="startYear" class="yr" value="${attr(s.startYear)}"></td>
+    <td><input data-f="endYear" class="yr" value="${attr(s.endYear)}"></td>
+    <td><input data-f="role" value="${attr(s.role)}"></td>
+    <td class="del"><button class="row-del" title="Remove">&times;</button></td>
+  </tr>`;
+}
+function renderStints(stints){
+  $("serviceBody2").innerHTML = stints.map(stintRowHTML).join("");
+  $("servicePreview").style.display = "block";
+  hideMsg("submitServiceMsg");
+  $("servicePreview").scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+$("addStintBtn").addEventListener("click", () => $("serviceBody2").insertAdjacentHTML("beforeend", stintRowHTML({})));
+$("serviceBody2").addEventListener("click", e => { if(e.target.closest(".row-del")) e.target.closest("tr").remove(); });
+
+function collectStints(){
+  return [...$("serviceBody2").querySelectorAll("tr")].map(tr => {
+    const o = {};
+    tr.querySelectorAll("input[data-f]").forEach(i => o[i.dataset.f] = i.value.trim());
+    return o;
+  }).filter(o => o.location || o.startYear || o.endYear || o.role);
+}
+
+$("submitServiceBtn").addEventListener("click", async () => {
+  hideMsg("submitServiceMsg");
+  const rows = collectStints();
+  if(!rows.length){ showMsg("submitServiceMsg","Add at least one place you served."); return; }
+  const name = $("serviceName").value.trim();
+  if(!name){ showMsg("submitServiceMsg","Please add your name at the top of this section."); return; }
+
+  const btn = $("submitServiceBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Saving…';
+  try{
+    const out = await postAction({ action:"addServiceFromPublic", submittedBy:name, stints:rows });
+    if(!out.ok) throw new Error(out.error || "Save failed.");
+    $("serviceForm").style.display = "none";
+    $("servicePreview").style.display = "none";
+    $("serviceDone").style.display = "flex";
+  }catch(err){ showMsg("submitServiceMsg", friendly(err.message)); }
+  finally{ btn.disabled = false; btn.textContent = "Submit my service history"; }
+});
+
+/* =====================================================================
+   MEDIA (photo / flyer / video) — upload OR paste a link
+   storyMedia = { url, isVideo } once something is attached.
+===================================================================== */
+let storyMedia = null;
+
+function showMediaPreview(){
+  const box = $("mediaPreview");
+  if(!storyMedia){ box.style.display = "none"; box.innerHTML = ""; return; }
+  if(storyMedia.isVideo){
+    box.innerHTML = `<div class="conf">✓ Video added</div>
+      <button class="btn ghost remove" id="removeMedia">Remove</button>`;
+  } else {
+    box.innerHTML = `<img src="${attr(driveImgUrl(storyMedia.url))}" alt="Your photo">
+      <button class="btn ghost remove" id="removeMedia">Remove this</button>`;
+  }
+  box.style.display = "block";
+  $("removeMedia").addEventListener("click", () => { storyMedia = null; $("linkInput").value = ""; $("fileInput").value = ""; showMediaPreview(); });
+}
+
+$("uploadBtn").addEventListener("click", () => $("fileInput").click());
+$("fileInput").addEventListener("change", async () => {
+  hideMsg("mediaMsg");
+  const file = $("fileInput").files[0];
+  if(!file) return;
+  if(!/^image\/|^video\//.test(file.type)){ showMsg("mediaMsg","Please choose a photo or a video file."); return; }
+  if(file.size > CONFIG.MAX_FILE_MB * 1024 * 1024){ showMsg("mediaMsg",`That file is a bit large — please keep it under about ${CONFIG.MAX_FILE_MB} MB.`); return; }
+
+  const btn = $("uploadBtn");
+  const orig = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Adding your photo…';
+  try{
+    const dataUrl = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(new Error("Couldn't read that file."));
+      fr.readAsDataURL(file);
+    });
+    const dataBase64 = String(dataUrl).split(",")[1] || "";
+    const out = await postAction({ action:"uploadStoryMedia", filename:file.name, mimeType:file.type, dataBase64 });
+    if(!out.ok) throw new Error(out.error || "Upload failed.");
+    storyMedia = { url: out.url, isVideo: !!out.isVideo };
+    showMediaPreview();
+  }catch(err){ showMsg("mediaMsg", friendly(err.message)); }
+  finally{ btn.disabled = false; btn.innerHTML = orig; }
+});
+
+$("addLinkBtn").addEventListener("click", () => {
+  hideMsg("mediaMsg");
+  const url = $("linkInput").value.trim();
+  if(!url){ showMsg("mediaMsg","Paste a link first, or use the Add a Photo button."); return; }
+  if(!/^https?:\/\//i.test(url)){ showMsg("mediaMsg","That doesn't look like a web link. It should start with http."); return; }
+  storyMedia = { url, isVideo: looksLikeVideo(url) };
+  showMediaPreview();
+});
+
+/* =====================================================================
+   STORY → parse → editable preview → submit
+===================================================================== */
+let nudgeAcked = false;
+
+$("shareBtn").addEventListener("click", async () => {
+  hideMsg("storyMsg"); $("nudge").style.display = "none";
+  const story = $("storyText").value.trim();
+  if(!story){ showMsg("storyMsg","Please tell us a little about your photo or memory."); $("storyText").focus(); return; }
+  if(story.length > CONFIG.TEXT_CAP){ showMsg("storyMsg","That's a wonderful amount to say — could you trim it just a little?"); return; }
+
+  // Encourage (don't require) a photo
+  if(!storyMedia && !nudgeAcked){ $("nudge").style.display = "block"; $("nudge").scrollIntoView({behavior:"smooth", block:"center"}); return; }
+
+  const btn = $("shareBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Reading your story…';
+  try{
+    const out = await postAction({ action:"parseStoryText", story });
+    if(!out.ok) throw new Error(out.error || "Couldn't read that.");
+    const f = out.fields || {};
+    $("pvTitle").value = f.title || "";
+    $("pvYear").value = f.year || "";
+    $("pvLocation").value = f.location || "";
+    $("pvPeople").value = f.people || "";
+    $("pvType").value = ["Photo","Flyer","Story","Event"].includes(f.type) ? f.type : "Story";
+    $("pvStory").value = f.story || story;
+    $("storyPreviewCard").style.display = "block";
+    autoGrow($("pvStory"));
+    $("storyPreviewCard").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(err){ showMsg("storyMsg", friendly(err.message)); }
+  finally{ btn.disabled = false; btn.textContent = "Share this story"; }
+});
+
+$("nudgeAdd").addEventListener("click", () => { $("nudge").style.display = "none"; $("mediaCard").scrollIntoView({behavior:"smooth", block:"center"}); });
+$("nudgeSkip").addEventListener("click", () => { nudgeAcked = true; $("nudge").style.display = "none"; $("shareBtn").click(); });
+$("backBtn").addEventListener("click", () => { $("storyPreviewCard").style.display = "none"; $("storyText").scrollIntoView({behavior:"smooth", block:"center"}); });
+
+$("finalSubmitBtn").addEventListener("click", async () => {
+  hideMsg("finalMsg");
+  const story = {
+    title:    $("pvTitle").value.trim(),
+    year:     $("pvYear").value.trim(),
+    location: $("pvLocation").value.trim(),
+    people:   $("pvPeople").value.trim(),
+    type:     $("pvType").value,
+    story:    $("pvStory").value.trim()
+  };
+  if(!story.title){ showMsg("finalMsg","Please give your story a short title."); $("pvTitle").focus(); return; }
+  const name = $("yourName").value.trim();
+
+  const btn = $("finalSubmitBtn");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Sharing…';
+  try{
+    const out = await postAction({ action:"addStoryFromPublic", submittedBy:name, story, media: storyMedia });
+    if(!out.ok) throw new Error(out.error || "Save failed.");
+    $("mediaCard").style.display = "none";
+    $("storyPreviewCard").style.display = "none";
+    $("successCard").style.display = "block";
+    $("successCard").scrollIntoView({behavior:"smooth", block:"start"});
+  }catch(err){ showMsg("finalMsg", friendly(err.message)); }
+  finally{ btn.disabled = false; btn.textContent = "Share my story"; }
+});
+
+$("shareAnotherBtn").addEventListener("click", () => { window.scrollTo({top:0, behavior:"smooth"}); window.location.reload(); });
+</script>
+</body>
+</html>

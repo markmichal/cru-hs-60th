@@ -11,6 +11,21 @@
  *   6. photo renaming    — auto-names uploaded photos by Title/Year/People
  *                          (form-submit trigger + "Cru 60th" menu; see the
  *                          PHOTO RENAMING section near the bottom for setup)
+ *   7. PUBLIC share.html  — the public, photo-first story page (NO PIN):
+ *        parseServiceText    — alumni "Map my journey" (AI)
+ *        addServiceFromPublic— append their stints to Staff Service
+ *        uploadStoryMedia    — save an uploaded photo/video to Drive
+ *        parseStoryText      — alumni "Share this story" (AI)
+ *        addStoryFromPublic  — append the story to Form Responses 2
+ *
+ * --------------------------------------------------------------------------
+ * PASTE-AND-REDEPLOY (every time you change this file):
+ *   1. Google Sheet → Extensions → Apps Script. Select all, delete, paste this
+ *      whole file, click Save.
+ *   2. Deploy → Manage deployments → pencil (edit) the Web app → Version:
+ *      "New version" → Deploy. The web app URL stays the SAME.
+ *   The site (index.html, intake.html, history-intake.html, share.html) all use
+ *   that one URL — no other change needed.
  *
  * --------------------------------------------------------------------------
  * SETUP — do this once (≈5 minutes). Plain-language steps:
@@ -48,6 +63,18 @@
  *    See the "PHOTO RENAMING" section near the bottom of this file for the
  *    one-time steps: add an "On form submit" trigger and approve the new
  *    Google Drive permission. Skip this if you don't want photo renaming.
+ *
+ * F) PUBLIC STORY PAGE (share.html) — the "Story Uploads" Drive folder
+ *    The first time someone uploads a photo on share.html, this script creates
+ *    a Drive folder called "Story Uploads" (in the script owner's My Drive) and
+ *    sets each uploaded file to "Anyone with the link → Viewer" so the website
+ *    can display it. No setup is strictly required, BUT it is wise to:
+ *      1. Run uploadStoryMedia once (just submit a test photo on share.html), then
+ *      2. Open Drive → find the new "Story Uploads" folder → right-click → Share →
+ *         set the FOLDER itself to "Anyone with the link → Viewer" too.
+ *    The first upload will trigger a Google Drive permission prompt — approve it.
+ *    NOTE: share.html is PUBLIC (no PIN). These actions skip the PIN check; they
+ *    cap text + file size as light abuse guards. Every submission is Approved=FALSE.
  * --------------------------------------------------------------------------
  * NOTE ON PINS: these must match the website CONFIG.
  *   EDIT_PIN   6060  (index.html CONFIG.EDIT_PIN)            — page editor
@@ -68,6 +95,11 @@ const STAFF_HEADERS = ["Person Name","Location","Start Year","End Year","Role","
 // Timeline event types the history intake may assign (the site styles these).
 const EVENT_TYPES = ["Milestone","Photo","Flyer","Story","Event"];
 
+// PUBLIC share.html settings.
+const STORY_FOLDER_NAME = "Story Uploads";  // Drive folder for public uploads
+const PUBLIC_TEXT_CAP   = 6000;             // friendly cap on pasted/spoken text
+const PUBLIC_FILE_BYTES = 25 * 1024 * 1024; // ~25 MB hard guard on an upload
+
 /* ============================ ROUTER ============================ */
 function doPost(e){
   try{
@@ -78,6 +110,12 @@ function doPost(e){
       case "addStints":        return handleAddStints(body);
       case "parseHistory":     return handleParseHistory(body);
       case "addHistoryEvents": return handleAddHistoryEvents(body);
+      // ---- PUBLIC share.html actions (no PIN) ----
+      case "parseServiceText":    return handleParseServiceText(body);
+      case "addServiceFromPublic":return handleAddServiceFromPublic(body);
+      case "uploadStoryMedia":    return handleUploadStoryMedia(body);
+      case "parseStoryText":      return handleParseStoryText(body);
+      case "addStoryFromPublic":  return handleAddStoryFromPublic(body);
       default:                 return json({ ok:false, error:"Unknown action." });
     }
   }catch(err){
@@ -88,7 +126,8 @@ function doPost(e){
 // Simple GET so you can open the web app URL in a browser to confirm it's live.
 function doGet(){
   return json({ ok:true, service:"cru-hs-60th",
-    actions:["saveSettings","parseNotes","addStints","parseHistory","addHistoryEvents"] });
+    actions:["saveSettings","parseNotes","addStints","parseHistory","addHistoryEvents",
+             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic"] });
 }
 
 function json(obj){
@@ -268,6 +307,212 @@ function lastTitleRow(sheet, titleColIdx){
   return 1;
 }
 
+/* =====================================================================
+   PUBLIC share.html ACTIONS (no PIN)
+   ---------------------------------------------------------------------
+   These power the public, photo-first story page. They never require a
+   PIN; instead they cap text + file size as light abuse guards, and every
+   row they write is Approved=FALSE (a reviewer approves before it shows).
+===================================================================== */
+
+/* ---- 7a) parseServiceText: alumni notes -> stints (AI) ---- */
+function handleParseServiceText(body){
+  const text = String(body.text || body.notes || "").trim();
+  if(!text) return json({ ok:false, error:"Please tell us where and when you served." });
+  if(text.length > PUBLIC_TEXT_CAP) return json({ ok:false, error:"That's a lot of text — could you shorten it a little?" });
+  try{
+    const stints = parseJsonArray(anthropicCall(SERVICE_PARSER_PROMPT, text)).map(function(s){
+      return { location:clean(s.location), startYear:year(s.startYear), endYear:year(s.endYear), role:clean(s.role) };
+    }).filter(function(s){ return s.location || s.startYear || s.endYear || s.role; });
+    return json({ ok:true, stints: stints });
+  }catch(err){ return json({ ok:false, error: publicErr(err) }); }
+}
+
+/* ---- 7b) addServiceFromPublic: append the submitter's stints to Staff Service ---- */
+function handleAddServiceFromPublic(body){
+  const name = String(body.submittedBy || body.name || "").trim();
+  if(!name) return json({ ok:false, error:"Please add your name." });
+  const stints = Array.isArray(body.stints) ? body.stints : [];
+  if(!stints.length) return json({ ok:false, error:"Add at least one place you served." });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(STAFF_TAB);
+  if(!sheet){ sheet = ss.insertSheet(STAFF_TAB); sheet.appendRow(STAFF_HEADERS); }
+  const now = new Date();
+  let added = 0;
+  stints.forEach(function(s){
+    const loc = clean(s.location), sy = year(s.startYear), ey = year(s.endYear), role = clean(s.role);
+    if(!loc && !sy && !ey && !role) return;     // skip an entirely empty row
+    sheet.appendRow([
+      name,                                     // Person Name = the submitter
+      loc, sy, ey, role,
+      "",                                       // Notes
+      false,                                    // Approved = FALSE
+      name,                                     // Submitted By
+      now                                       // Submitted At
+    ]);
+    added++;
+  });
+  if(!added) return json({ ok:false, error:"Nothing to save yet." });
+  return json({ ok:true, added: added });
+}
+
+/* ---- 7c) uploadStoryMedia: save a base64 file to the "Story Uploads" folder ----
+ * Returns a link in the id= form that the site's driveImg()/videoInfo() both
+ * understand. Stage 1 keeps a temporary name; Stage 2 will auto-rename. */
+function handleUploadStoryMedia(body){
+  try{
+    const data = String(body.dataBase64 || "");
+    if(!data) return json({ ok:false, error:"No file received." });
+    if(Math.floor(data.length * 0.75) > PUBLIC_FILE_BYTES)
+      return json({ ok:false, error:"That file is a bit large — please keep it under about 20 MB." });
+
+    const mimeType = String(body.mimeType || "application/octet-stream");
+    const filename = String(body.filename || "story-upload")
+      .replace(/[\\/:*?"<>|\n\r]+/g, "-").slice(0, 120) || "story-upload";
+
+    const blob   = Utilities.newBlob(Utilities.base64Decode(data), mimeType, filename);
+    const folder = getStoryFolder_();
+    const file   = folder.createFile(blob);
+    try{ file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }catch(e){}
+
+    const id = file.getId();
+    return json({
+      ok: true,
+      fileId: id,
+      isVideo: mimeType.indexOf("video") === 0,
+      url: "https://drive.google.com/thumbnail?id=" + id + "&sz=w1200"
+    });
+  }catch(err){ return json({ ok:false, error:String(err && err.message || err) }); }
+}
+
+// Get (or make) the dedicated public-upload folder; share it so the site can read it.
+function getStoryFolder_(){
+  const it = DriveApp.getFoldersByName(STORY_FOLDER_NAME);
+  if(it.hasNext()) return it.next();
+  const f = DriveApp.createFolder(STORY_FOLDER_NAME);
+  try{ f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); }catch(e){}
+  return f;
+}
+
+/* ---- 7d) parseStoryText: a freeform memory -> one structured record (AI) ---- */
+function handleParseStoryText(body){
+  const story = String(body.story || body.text || "").trim();
+  if(!story) return json({ ok:false, error:"Please write a little about your photo or memory." });
+  if(story.length > PUBLIC_TEXT_CAP) return json({ ok:false, error:"That's a lot to say — could you trim it just a little?" });
+  try{
+    const o = parseJsonObject(anthropicCall(STORY_PARSER_PROMPT, story));
+    const fields = {
+      title:    clean(o.title),
+      year:     year(o.year),
+      location: clean(o.location),
+      people:   clean(o.people),
+      type:     normType(o.type),
+      story:    clean(o.story) || story         // fall back to their own words
+    };
+    return json({ ok:true, fields: fields });
+  }catch(err){ return json({ ok:false, error: publicErr(err) }); }
+}
+
+/* ---- 7e) addStoryFromPublic: append the story to Form Responses 2 ----
+ * Matches existing columns by case-insensitive substring (like the history
+ * intake); creates any it needs at the far right. A photo/flyer link goes in
+ * the Photo column; a video link goes in the Video column AND gets a
+ * "Watch the video" button so the site embeds a player. Approved/On Timeline
+ * are forced FALSE. */
+function handleAddStoryFromPublic(body){
+  const name  = String(body.submittedBy || "").trim();
+  const s     = body.story || {};
+  const title = clean(s.title);
+  if(!title) return json({ ok:false, error:"We need a short title for the story." });
+
+  const media    = body.media || null;
+  const mediaUrl = media ? clean(media.url) : "";
+  const isVideo  = media ? !!media.isVideo : false;
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(FORM_TAB);
+  if(!sheet){
+    sheet = ss.insertSheet(FORM_TAB);
+    sheet.appendRow(["Timestamp","Title","Year","Location","People","Type","Story","Photo",
+                     "Video","Button Label","Button URL","Approved","On Timeline","Featured",
+                     "Submitted By","Submitted At"]);
+  }
+
+  let headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0]
+                  .map(function(h){ return String(h).toLowerCase().trim(); });
+  function colOf(sub){ for(var i=0;i<headers.length;i++){ if(headers[i].indexOf(sub)>=0) return i; } return -1; }
+  function ensureCol(sub, label){
+    var i = colOf(sub); if(i >= 0) return i;
+    var idx = headers.length;
+    if(sheet.getMaxColumns() < idx + 1) sheet.insertColumnsAfter(sheet.getMaxColumns(), (idx + 1) - sheet.getMaxColumns());
+    sheet.getRange(1, idx + 1).setValue(label);
+    headers.push(label.toLowerCase());
+    return idx;
+  }
+
+  var cTitle    = ensureCol("title",        "Title");
+  var cYear     = ensureCol("year",         "Year");
+  var cLoc      = ensureCol("location",     "Location");
+  var cPeople   = ensureCol("people",       "People");
+  var cType     = ensureCol("type",         "Type");
+  var cStory    = ensureCol("story",        "Story");
+  var cPhoto    = ensureCol("photo",        "Photo");
+  var cApproved = ensureCol("approved",     "Approved");
+  var cTimeline = ensureCol("timeline",     "On Timeline");
+  var cSubBy    = ensureCol("submitted by", "Submitted By");
+  var cSubAt    = ensureCol("submitted at", "Submitted At");
+  var cVideo = -1, cBtnLabel = -1, cBtnUrl = -1;
+  if(isVideo && mediaUrl){
+    cVideo    = ensureCol("video",        "Video");
+    cBtnLabel = ensureCol("button label", "Button Label");
+    cBtnUrl   = ensureCol("button url",   "Button URL");
+  }
+
+  var width = headers.length;
+  var row = []; for(var i = 0; i < width; i++) row.push("");
+  function put(ci, v){ if(ci >= 0 && ci < width) row[ci] = v; }
+  put(cTitle,    title);
+  put(cYear,     yearNum(s.year));
+  put(cLoc,      clean(s.location));
+  put(cPeople,   clean(s.people));
+  put(cStory,    clean(s.story));
+  put(cApproved, false);
+  put(cTimeline, false);
+  put(cSubBy,    name);
+  put(cSubAt,    new Date());
+  if(isVideo && mediaUrl){
+    put(cType,     "Video");                  // the site also auto-labels video rows
+    put(cVideo,    mediaUrl);
+    put(cBtnLabel, "Watch the video");
+    put(cBtnUrl,   mediaUrl);
+  } else {
+    put(cType, normType(s.type));
+    if(mediaUrl) put(cPhoto, mediaUrl);
+  }
+
+  var startRow = lastTitleRow(sheet, cTitle) + 1;
+  sheet.getRange(startRow, 1, 1, width).setValues([row]);
+  return json({ ok:true, startRow: startRow });
+}
+
+// Friendly, public-safe error text (never leak internals to a public visitor).
+function publicErr(err){
+  var m = String(err && err.message || err);
+  if(/api key|ANTHROPIC/i.test(m)) return "Our story helper is taking a quick break. Please try again in a little while.";
+  return "Sorry, we couldn't read that just now. Please try again.";
+}
+
+// Tolerantly pull a JSON OBJECT out of the model's text (mirrors parseJsonArray).
+function parseJsonObject(txt){
+  try{ return JSON.parse(txt); }
+  catch(e){
+    var m = String(txt).match(/\{[\s\S]*\}/);
+    if(m){ try{ return JSON.parse(m[0]); }catch(e2){} }
+    throw new Error("AI did not return a readable result.");
+  }
+}
+
 /* ===================== LLM PROVIDER (swappable) =====================
  * Everything provider-specific lives in anthropicCall(). It calls Anthropic's
  * Claude Messages API (raw HTTPS — Apps Script has no SDK). Each parser
@@ -402,6 +647,38 @@ const HISTORY_PARSER_PROMPT =
   "onTimeline (true only for major organizational milestones, false otherwise). " +
   "If the notes describe multiple distinct events return multiple objects. " +
   "If nothing clear can be extracted return []. Never invent facts not in the notes.";
+
+/* PUBLIC share.html prompts ------------------------------------------------ */
+
+// SERVICE — a person describing their OWN service. Person is implicit (the
+// submitter), so there is no personName field — one row per location.
+const SERVICE_PARSER_PROMPT = [
+  "You convert a person's own description of where and when they served with Cru High School (Student Venture) into structured service records.",
+  "A 'stint' = one location for one time span. Output one row per stint.",
+  "",
+  "RULES:",
+  "- Return ONLY a JSON array. Each item: {location, startYear, endYear, role}.",
+  "- One row per location. If they served in three places, output three rows.",
+  "- NEVER invent or guess years. If a year is not stated, leave it blank (\"\").",
+  "- Convert 2-digit years to 4 digits using ministry context (78 -> 1978, 05 -> 2005).",
+  "- Years are 4-digit strings or \"\". Do not output ranges inside a single year field.",
+  "- 'location' is the city/place as stated. Do not add a state/country they didn't say.",
+  "- 'role' only if a role/title is stated (e.g. Staff, Director, Intern); otherwise \"\".",
+  "- If nothing clear can be extracted, return [].",
+  "- Output JSON only — no commentary, no markdown."
+].join("\n");
+
+// STORY — one freeform memory about a photo/flyer/moment -> ONE record object.
+const STORY_PARSER_PROMPT =
+  "You help turn a person's freeform memory about a photo, flyer, or moment from Cru High School " +
+  "(Student Venture) history into one structured record. " +
+  "Return ONLY a JSON object (not an array), no commentary, no markdown, with these exact keys: " +
+  "title (a short, warm headline, about 3-8 words), year (a 4-digit number or null), " +
+  "location (city and state/country if stated, otherwise null), " +
+  "people (comma-separated names they mention, otherwise null), " +
+  "type (one of: Photo, Flyer, Story, Event), " +
+  "story (a clear 1-3 sentence retelling in a warm, respectful voice, staying true to what they wrote). " +
+  "Never invent facts, names, years, or places that are not in their words. If a field is unknown, use null.";
 
 /* =====================================================================
    PHOTO RENAMING  (gives uploaded images meaningful, recognizable names)

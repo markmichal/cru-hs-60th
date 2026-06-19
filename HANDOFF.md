@@ -50,5 +50,25 @@ There are two working versions of the site (same Google Sheet as the data source
 
 ---
 
-## Next task — build `share.html`
-A **public, photo-first AI story submission page**. Mark will paste the full build prompt in a **new session**. Expected to be a single static page in this repo (like `intake.html` / `history-intake.html`), but public-facing and oriented around uploading a photo + telling its story, with AI assistance. Details to come from the pasted prompt.
+## Completed — `share.html` (public story page, Stage 1)
+A **public, photo-first AI story submission page** — no PIN. Single static page in this repo, same dependencies/brand as the intake pages but warmer, with big touch targets and large text for older users on tablets. Live path: `/share.html`. Top-to-bottom:
+- **Welcome-video bar** — slim strip with a thumbnail + play overlay; opens the video in a lightbox (closes on X / backdrop / Esc). Reads `welcomeVideoUrl`, `welcomeVideoThumb`, `welcomeVideoLabel` from the **Site Settings** tab; if `welcomeVideoUrl` is empty the whole bar is hidden. These three keys were added to the hidden editor (`SETTINGS_SCHEMA` in `index.html`, section "Welcome video (Share page)") so they're editable without code.
+- **Collapsed service-history panel** — name field + textarea (with mic) → "Map my journey" (`parseServiceText`) → editable Location/Start/End/Role table → "Submit my service history" (`addServiceFromPublic`) appends to **Staff Service** (Approved=FALSE, Person Name + Submitted By = their name). Collapses to a ✓ on success.
+- **Media hero** — big "Add a Photo" upload (image/video) OR "paste a link". Uploads go through `uploadStoryMedia` → saved to a Drive **"Story Uploads"** folder → returns a `driveImg()`-compatible link. Shows an inline preview.
+- **Story** — warm textarea + a mic button that uses `webkitSpeechRecognition`, shown **only** where the browser supports it (feature-detected; hidden otherwise — e.g. Firefox).
+- **Verify + submit** — "Share this story" (`parseStoryText`) → editable preview (Title/Year/Location/People/Type/Story) → final submit (`addStoryFromPublic`) appends to **Form Responses 2** (Approved=FALSE, On Timeline=FALSE, Submitted By = name). Photo link → Photo column; video link → Video column + a "Watch the video" button. Encourages-but-never-requires a photo (gentle nudge with a "Continue without a photo" option).
+- **Apps Script** (`apps-script-reference.gs`): five new public actions added (`parseServiceText`, `addServiceFromPublic`, `uploadStoryMedia`, `parseStoryText`, `addStoryFromPublic`), all using Claude Haiku 4.5 + the existing `ANTHROPIC_API_KEY`. All existing actions intact. No PIN on the public actions; text/file-size caps as light abuse guards.
+
+**Verified locally:** page loads with no console errors; the mic shows when supported and hides when not; the welcome bar stays hidden while `welcomeVideoUrl` is empty; service expand, video-link detection, and the no-photo nudge all work.
+
+### share.html — owner actions still needed
+1. **Redeploy the Apps Script** from `apps-script-reference.gs` (Manage deployments → New version) so the five new actions go live — until then the page's buttons will error. Same web app URL.
+2. First photo upload creates the **"Story Uploads"** Drive folder and prompts for a Drive permission — approve it. Then set that folder's sharing to **Anyone with link → Viewer** (see SETUP note F at the top of the .gs).
+3. Optionally set `welcomeVideoUrl` (+ thumb/label) in the hidden editor (PIN 6060) to switch on the welcome bar.
+4. Smoke-test `/share.html` end to end after redeploy.
+
+### Stage 2 (later)
+Photo **auto-renaming** for public uploads (mirror the existing form-submit renamer), and any polish from real-world testing.
+
+## Earlier next task (now done) — build `share.html`
+Built as Stage 1 above. Stage 2 (auto-rename) remains.
