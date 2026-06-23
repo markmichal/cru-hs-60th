@@ -545,9 +545,11 @@
    SHEET_ID    The master Google Sheet. Must be shared "Anyone with the
                link can view."
    FORM_TAB    Tab where Google Form submissions land.
-   FORM_URL    Default destination for the submit buttons. Once the site
-               is live you can change this from the hidden editor instead
-               (it's saved in the "Site Settings" tab).
+   FORM_URL    Default destination for the submit buttons. We've retired the
+               old Google Form for our own in-site story page (share.html);
+               see storySubmitUrl() — any saved Google-Form URL is ignored so
+               the buttons always land on share.html. A non-form custom URL
+               set in the hidden editor is still honored.
    SCRIPT_URL  Apps Script Web App URL — required for the hidden editor
                to save page text to the Sheet. Until set, edits are
                temporary (this browser session only).
@@ -561,7 +563,11 @@ const CONFIG = {
   SHEET_ID: "1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE",
   MASTER_TAB: "Cru HS 60th Anniversary Timeline (master)",
   FORM_TAB: "Form Responses 2",
-  FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform",
+  // Both "Share Your Story" submit buttons now go to our own in-site story page
+  // (share.html), not the old Google Form. Relative path → works on the custom
+  // domain and the github.io/cru-hs-60th/ path alike. (Old Google Form, kept for
+  // reference: https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform )
+  FORM_URL: "share.html",
   CORRECTION_FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSd7Axq15m49v4jwQYCXCyPyc9KgMf-lC2sI99vLltlC1FyDmw/viewform",
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
   EDIT_PIN: "6060",
@@ -711,6 +717,14 @@ function locationData(name){
 }
 
 const formUrl = () => SETTINGS.formUrl || CONFIG.FORM_URL;
+// Where the two "Share Your Story" submit buttons go. We've retired the old
+// Google Form in favor of our own in-site story page, so if the saved setting
+// still points at any Google Form, ignore it and use share.html. A non-form
+// custom URL in the editor is still honored.
+const storySubmitUrl = () => {
+  const u = formUrl();
+  return (!u || /docs\.google\.com\/forms/i.test(u)) ? "share.html" : u;
+};
 const correctionUrl = () => SETTINGS.correctionFormUrl || CONFIG.CORRECTION_FORM_URL;
 
 /* ============ SETTINGS: defaults, apply, load ============ */
@@ -1414,7 +1428,7 @@ document.addEventListener("click", e => {
   if(e.target.dataset.close){ if(e.target.dataset.close==="modalOverlay") closeModal(); else $(e.target.dataset.close).classList.remove("open"); return; }
   if(e.target.id === "modalOverlay"){ closeModal(); return; }
   if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
-  if(e.target.id === "submitBtn" || e.target.id === "footerSubmit"){ e.preventDefault(); window.open(formUrl(), "_blank"); return; }
+  if(e.target.id === "submitBtn" || e.target.id === "footerSubmit"){ e.preventDefault(); const u = storySubmitUrl(); if(/^https?:\/\//i.test(u)) window.open(u, "_blank"); else window.location.href = u; return; }
   if(e.target.id === "footerCorrection"){ e.preventDefault(); window.open(correctionUrl(), "_blank"); return; }
   if(e.target.id === "editDot"){ editing ? exitEditMode() : enterEditMode(); return; }
   if(e.target.id === "exitEditBtn"){ exitEditMode(); return; }
