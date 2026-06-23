@@ -30,9 +30,16 @@
  *   >>> CHANGED 2026-06-23 — you MUST paste this file in and redeploy a NEW
  *       version for these to take effect:
  *         • addStoryFromPublic now stores the submitter's EMAIL (Email column,
- *           created if missing) and writes a SERVER-SIDE timestamp into the
- *           existing "Submitted At" and/or "Timestamp" column.
+ *           created if missing) and writes a SERVER-SIDE timestamp.
  *         • (share.html now requires name + email before a story can be sent.)
+ *         • addStoryFromPublic now maps the submitter's NAME to the form's
+ *           existing "Your name" column and the timestamp to the form's
+ *           existing "Timestamp" column — it no longer writes "Submitted By" /
+ *           "Submitted At" on Form Responses 2 (those duplicated the form's own
+ *           columns). After redeploying and confirming a test submission lands
+ *           in Your name + Timestamp, you may delete the now-unused
+ *           "Submitted By"/"Submitted At" columns from Form Responses 2.
+ *           (Staff Service keeps its Submitted By/At — leave that tab alone.)
  *
  * --------------------------------------------------------------------------
  * SETUP — do this once (≈5 minutes). Plain-language steps:
@@ -441,9 +448,8 @@ function handleAddStoryFromPublic(body){
   let sheet = ss.getSheetByName(FORM_TAB);
   if(!sheet){
     sheet = ss.insertSheet(FORM_TAB);
-    sheet.appendRow(["Timestamp","Title","Year","Location","People","Type","Story","Photo",
-                     "Video","Button Label","Button URL","Approved","On Timeline","Featured",
-                     "Submitted By","Submitted At"]);
+    sheet.appendRow(["Timestamp","Your name","Email","Title","Year","Location","People","Type","Story","Photo",
+                     "Video","Button Label","Button URL","Approved","On Timeline","Featured"]);
   }
 
   let headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0]
@@ -467,13 +473,14 @@ function handleAddStoryFromPublic(body){
   var cPhoto    = ensureCol("photo",        "Photo");
   var cApproved = ensureCol("approved",     "Approved");
   var cTimeline = ensureCol("timeline",     "On Timeline");
-  var cSubBy    = ensureCol("submitted by", "Submitted By");
+  // The submitter's NAME goes in the form's existing "Your name" column, and the
+  // SERVER-SIDE timestamp goes in the form's existing "Timestamp" column. We no
+  // longer write separate "Submitted By"/"Submitted At" columns here — those
+  // duplicated the form's own columns. (Staff Service still uses Submitted By/At
+  // intentionally as provenance; that tab is untouched.)
+  var cName     = ensureCol("your name",  "Your name");
   var cEmail    = colOf("email");  if(cEmail < 0) cEmail = ensureCol("email", "Email");
-  // Server-side timestamp: write into an existing "Submitted At" and/or the
-  // form's "Timestamp" column; create "Submitted At" only if neither exists.
-  var cSubAt    = colOf("submitted at");
-  var cStamp    = colOf("timestamp");
-  if(cSubAt < 0 && cStamp < 0) cSubAt = ensureCol("submitted at", "Submitted At");
+  var cStamp    = ensureCol("timestamp",  "Timestamp");
   var cVideo = -1, cBtnLabel = -1, cBtnUrl = -1;
   if(isVideo && mediaUrl){
     cVideo    = ensureCol("video",        "Video");
@@ -492,9 +499,8 @@ function handleAddStoryFromPublic(body){
   put(cApproved, false);
   put(cTimeline, false);
   var now = new Date();                          // server-side — never trust the client
-  put(cSubBy,    name);
+  put(cName,     name);
   put(cEmail,    clean(body.email));
-  put(cSubAt,    now);
   put(cStamp,    now);
   if(isVideo && mediaUrl){
     put(cType,     "Video");                  // the site also auto-labels video rows

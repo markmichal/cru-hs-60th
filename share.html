@@ -111,9 +111,10 @@
   .pv-grid .full{grid-column:1 / -1;}
   @media(max-width:560px){ .pv-grid{grid-template-columns:1fr;} }
 
-  /* soft helper prompts above Year / Location / People (turn red when empty on submit) */
-  .encourage{font-size:.92rem; color:var(--graphite); margin:0 0 6px; line-height:1.45;}
-  .encourage.alert{color:var(--vermilion); font-weight:700;}
+  /* red empty-prompt below Year / Location / People — shown only on submit when
+     empty, never blocks submission (clears the instant they type) */
+  .encourage{display:none; color:var(--vermilion); font-weight:700; font-size:.92rem; margin:6px 0 0; line-height:1.45;}
+  .encourage.alert{display:block;}
   input.flag, textarea.flag{border-color:var(--vermilion); background:#fff7f4;}
 
   /* required-field inline errors (name / email) */
@@ -311,16 +312,19 @@
     <div class="pv-grid">
       <div class="field"><label for="pvTitle">Title</label><input type="text" id="pvTitle"></div>
       <div class="field">
-        <p class="encourage" id="encYear">📅 The year really helps us place this moment.</p>
-        <label for="pvYear">Year</label><input type="text" id="pvYear" placeholder="e.g. 1985">
+        <label for="pvYear">Year</label>
+        <input type="text" id="pvYear" placeholder="Tell us the year if you can">
+        <p class="encourage" id="encYear"></p>
       </div>
       <div class="field">
-        <p class="encourage" id="encLocation">📍 Where did this happen?</p>
-        <label for="pvLocation">Location</label><input type="text" id="pvLocation">
+        <label for="pvLocation">Location</label>
+        <input type="text" id="pvLocation" placeholder="Where did this happen?">
+        <p class="encourage" id="encLocation"></p>
       </div>
       <div class="field">
-        <p class="encourage" id="encPeople">👥 Anyone pictured or involved?</p>
-        <label for="pvPeople">People</label><input type="text" id="pvPeople" placeholder="Names, separated by commas">
+        <label for="pvPeople">People</label>
+        <input type="text" id="pvPeople" placeholder="Names, separated by commas">
+        <p class="encourage" id="encPeople"></p>
       </div>
       <div class="field"><label for="pvType">Type</label>
         <select id="pvType"><option>Photo</option><option>Flyer</option><option>Story</option><option>Event</option></select>
@@ -694,18 +698,19 @@ function checkRequired(){
 
 /* ----- Encouraged (NOT required): year / location / people ----- */
 const ENCOURAGE = [
-  { input:"pvYear",     el:"encYear",     soft:"📅 The year really helps us place this moment.", hard:"Please add a year if you can remember it." },
-  { input:"pvLocation", el:"encLocation", soft:"📍 Where did this happen?",                        hard:"A place helps — please add one if you can." },
-  { input:"pvPeople",   el:"encPeople",   soft:"👥 Anyone pictured or involved?",                  hard:"Please add any names you remember." }
+  { input:"pvYear",     el:"encYear",     hard:"Please add a year if you can remember it." },
+  { input:"pvLocation", el:"encLocation", hard:"A place helps — please add one if you can." },
+  { input:"pvPeople",   el:"encPeople",   hard:"Please add any names you remember." }
 ];
 let encourageAcked = false;
+function clearEncourage(c){ $(c.el).textContent = ""; $(c.el).classList.remove("alert"); $(c.input).classList.remove("flag"); }
 function resetEncourage(){
   encourageAcked = false;
-  ENCOURAGE.forEach(c => { $(c.el).textContent = c.soft; $(c.el).classList.remove("alert"); $(c.input).classList.remove("flag"); });
+  ENCOURAGE.forEach(clearEncourage);
 }
 // red prompt clears the instant they type something in that field
 ENCOURAGE.forEach(c => $(c.input).addEventListener("input", () => {
-  if($(c.input).value.trim()){ $(c.el).textContent = c.soft; $(c.el).classList.remove("alert"); $(c.input).classList.remove("flag"); }
+  if($(c.input).value.trim()) clearEncourage(c);
 }));
 
 $("shareBtn").addEventListener("click", async () => {
