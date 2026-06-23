@@ -136,6 +136,20 @@
   .lb-video iframe{position:absolute; inset:0; width:100%; height:100%; border:0;}
   .lb-close{position:absolute; top:-52px; right:0; background:var(--white); color:var(--black); border:none;
     border-radius:50%; width:42px; height:42px; font-size:1.4rem; line-height:1; min-height:auto; box-shadow:0 2px 8px rgba(0,0,0,.4);}
+
+  /* ---------- Home link (under the yellow header line) ---------- */
+  .home-bar{max-width:780px; margin:0 auto; padding:18px 20px 0;}
+  .home-link{display:inline-flex; align-items:center; gap:8px; color:var(--turquoise); text-decoration:none;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:1rem; padding:6px 4px; min-height:44px;}
+  .home-link:hover{text-decoration:underline;}
+  .home-link .ha{font-size:1.25rem; line-height:1;}
+
+  /* ---------- "Leave without saving?" confirm card (reuses .lightbox) ---------- */
+  .confirm-card{position:relative; z-index:1; background:var(--white); border-radius:12px; padding:28px;
+    max-width:440px; width:100%; box-shadow:0 8px 30px rgba(0,0,0,.32);}
+  .confirm-card h3{font-family:'Sora',sans-serif; font-weight:800; font-size:1.35rem; margin-bottom:10px;}
+  .confirm-card p{font-size:1.05rem; line-height:1.55; color:var(--graphite); margin-bottom:22px;}
+  .confirm-actions{display:flex; gap:12px; flex-wrap:wrap; justify-content:flex-end;}
 </style>
 </head>
 <body>
@@ -147,6 +161,10 @@
     <div class="sub">Cru High School · 60th Anniversary</div>
   </div>
 </header>
+
+<div class="home-bar">
+  <a href="index.html" id="homeLink" class="home-link"><span class="ha">&#8592;</span> Home</a>
+</div>
 
 <main>
 
@@ -300,6 +318,19 @@
 
 </main>
 
+<!-- ===== "Leave without saving?" confirm ===== -->
+<div class="lightbox" id="homeConfirm">
+  <div class="lb-backdrop" data-homeclose></div>
+  <div class="confirm-card">
+    <h3>Go back to the homepage?</h3>
+    <p>If you leave now, the story you've started won't be saved. Are you sure you want to return to the homepage?</p>
+    <div class="confirm-actions">
+      <button class="btn ghost" data-homeclose>Stay on this page</button>
+      <button class="btn dark" id="confirmHomeGo">Yes, go home</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===== Video lightbox ===== -->
 <div class="lightbox" id="videoLightbox">
   <div class="lb-backdrop" data-close></div>
@@ -426,7 +457,23 @@ function closeVideo(){ $("videoLightbox").classList.remove("show"); $("lbVideo")
 $("wbThumb").addEventListener("click", openVideo);
 $("wbGo").addEventListener("click", openVideo);
 $("videoLightbox").addEventListener("click", e => { if(e.target.dataset.close !== undefined) closeVideo(); });
-document.addEventListener("keydown", e => { if(e.key === "Escape") closeVideo(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape"){ closeVideo(); $("homeConfirm").classList.remove("show"); } });
+
+/* =====================================================================
+   Home link — warn before leaving, but ONLY if a story is in progress
+   (so an empty form just goes home without nagging).
+===================================================================== */
+function hasProgress(){
+  if(["serviceName","serviceText","yourName","storyText"].some(id => $(id).value.trim())) return true;
+  if(storyMedia) return true;
+  return false;
+}
+$("homeLink").addEventListener("click", e => {
+  if(hasProgress()){ e.preventDefault(); $("homeConfirm").classList.add("show"); }
+  // otherwise let the link navigate home normally
+});
+$("homeConfirm").addEventListener("click", e => { if(e.target.dataset.homeclose !== undefined) $("homeConfirm").classList.remove("show"); });
+$("confirmHomeGo").addEventListener("click", () => { window.location.href = "index.html"; });
 
 /* =====================================================================
    Microphone (Web Speech API) — only shown where the browser supports it
