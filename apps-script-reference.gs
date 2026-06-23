@@ -27,6 +27,13 @@
  *   The site (index.html, intake.html, history-intake.html, share.html) all use
  *   that one URL — no other change needed.
  *
+ *   >>> CHANGED 2026-06-23 — you MUST paste this file in and redeploy a NEW
+ *       version for these to take effect:
+ *         • addStoryFromPublic now stores the submitter's EMAIL (Email column,
+ *           created if missing) and writes a SERVER-SIDE timestamp into the
+ *           existing "Submitted At" and/or "Timestamp" column.
+ *         • (share.html now requires name + email before a story can be sent.)
+ *
  * --------------------------------------------------------------------------
  * SETUP — do this once (≈5 minutes). Plain-language steps:
  *
@@ -461,7 +468,12 @@ function handleAddStoryFromPublic(body){
   var cApproved = ensureCol("approved",     "Approved");
   var cTimeline = ensureCol("timeline",     "On Timeline");
   var cSubBy    = ensureCol("submitted by", "Submitted By");
-  var cSubAt    = ensureCol("submitted at", "Submitted At");
+  var cEmail    = colOf("email");  if(cEmail < 0) cEmail = ensureCol("email", "Email");
+  // Server-side timestamp: write into an existing "Submitted At" and/or the
+  // form's "Timestamp" column; create "Submitted At" only if neither exists.
+  var cSubAt    = colOf("submitted at");
+  var cStamp    = colOf("timestamp");
+  if(cSubAt < 0 && cStamp < 0) cSubAt = ensureCol("submitted at", "Submitted At");
   var cVideo = -1, cBtnLabel = -1, cBtnUrl = -1;
   if(isVideo && mediaUrl){
     cVideo    = ensureCol("video",        "Video");
@@ -479,8 +491,11 @@ function handleAddStoryFromPublic(body){
   put(cStory,    clean(s.story));
   put(cApproved, false);
   put(cTimeline, false);
+  var now = new Date();                          // server-side — never trust the client
   put(cSubBy,    name);
-  put(cSubAt,    new Date());
+  put(cEmail,    clean(body.email));
+  put(cSubAt,    now);
+  put(cStamp,    now);
   if(isVideo && mediaUrl){
     put(cType,     "Video");                  // the site also auto-labels video rows
     put(cVideo,    mediaUrl);

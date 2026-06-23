@@ -61,8 +61,16 @@ A **public, photo-first AI story submission page** — no PIN. Single static pag
 
 **Verified locally:** page loads with no console errors; the mic shows when supported and hides when not; the welcome bar stays hidden while `welcomeVideoUrl` is empty; service expand, video-link detection, and the no-photo nudge all work.
 
+### Stage 1.1 refinements (2026-06-23)
+- **Name + email now required** to send a story. Added a "Your email" field beside "Your name" in the story area; both are hard-required (clear inline red errors block "Share this story" until name is filled and email looks valid — contains `@` and a domain). Year/location/people are NOT required.
+- **Email is stored.** `addStoryFromPublic` writes the submitter's email to an **Email** column in Form Responses 2 (created if missing).
+- **Server-side timestamp.** `addStoryFromPublic` stamps the current date/time (generated in Apps Script, never the browser) into the existing **Submitted At** and/or **Timestamp** column, matched by header substring. Service rows already stamp Submitted At server-side.
+- **Pre-fill on repeat.** "Share another" no longer reloads — it clears the story/photo/preview but **keeps the name + email** filled for the session (in-page state; no localStorage, which is blocked here).
+- **Red attention-prompts on the verify step** for Year / Location / People: a soft muted helper sits above each field always; on a submit attempt with any empty, those turn **red + insistent** and the box is flagged, and the button becomes "Share anyway". The red clears the instant they type. These three never block submission (the story still goes through).
+- Verified locally: required name+email gating, invalid-email block, error-clear-on-type, the encourage red prompts + "Share anyway", and name/email pre-fill on "Share another" all work; no console errors.
+
 ### share.html — owner actions still needed
-1. **Redeploy the Apps Script** from `apps-script-reference.gs` (Manage deployments → New version) so the five new actions go live — until then the page's buttons will error. Same web app URL.
+1. **Redeploy the Apps Script** from `apps-script-reference.gs` (Manage deployments → New version) so the public actions — **including the new email + server-timestamp behavior** — go live. Until then the page's buttons will error. Same web app URL. (See the dated ">>> CHANGED 2026-06-23" note at the top of the .gs.)
 2. First photo upload creates the **"Story Uploads"** Drive folder and prompts for a Drive permission — approve it. Then set that folder's sharing to **Anyone with link → Viewer** (see SETUP note F at the top of the .gs).
 3. Optionally set `welcomeVideoUrl` (+ thumb/label) in the hidden editor (PIN 6060) to switch on the welcome bar.
 4. Smoke-test `/share.html` end to end after redeploy.

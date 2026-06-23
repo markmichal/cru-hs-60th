@@ -111,6 +111,15 @@
   .pv-grid .full{grid-column:1 / -1;}
   @media(max-width:560px){ .pv-grid{grid-template-columns:1fr;} }
 
+  /* soft helper prompts above Year / Location / People (turn red when empty on submit) */
+  .encourage{font-size:.92rem; color:var(--graphite); margin:0 0 6px; line-height:1.45;}
+  .encourage.alert{color:var(--vermilion); font-weight:700;}
+  input.flag, textarea.flag{border-color:var(--vermilion); background:#fff7f4;}
+
+  /* required-field inline errors (name / email) */
+  .field-error{display:none; color:var(--vermilion); font-weight:700; font-size:.92rem; margin-top:6px; line-height:1.45;}
+  .req{font-weight:600; color:var(--vermilion); font-size:.85em;}
+
   /* ---------- Service preview table ---------- */
   .preview-wrap{overflow-x:auto;}
   table{border-collapse:collapse; width:100%; min-width:520px; margin-top:6px;}
@@ -258,13 +267,21 @@
   </div>
 
   <!-- ===== Story ===== -->
-  <div class="card">
+  <div class="card" id="storyCard">
     <h2>Now tell us about it</h2>
     <p class="lead">What was happening? Who was there? Why does it matter to you? A sentence or two is plenty.</p>
 
     <div class="field">
-      <label for="yourName">Your name <span style="font-weight:500; color:var(--graphite)">(so we can credit you)</span></label>
+      <label for="yourName">Your name <span class="req">(required)</span></label>
       <input type="text" id="yourName" placeholder="e.g. Pat Johnson" autocomplete="name">
+      <div class="field-error" id="nameError">Please add your name so we can credit you.</div>
+    </div>
+
+    <div class="field">
+      <label for="yourEmail">Your email <span class="req">(required)</span></label>
+      <input type="text" id="yourEmail" placeholder="e.g. pat@example.com" autocomplete="email" inputmode="email">
+      <div class="hint">So we can follow up about your story. Never shown on the site.</div>
+      <div class="field-error" id="emailError">Please enter a valid email, like pat@example.com.</div>
     </div>
 
     <div class="field story-wrap">
@@ -293,9 +310,18 @@
     <p class="lead">We tidied your words into a short record. Change anything that's off, then share it. Nothing goes public until our team reviews it.</p>
     <div class="pv-grid">
       <div class="field"><label for="pvTitle">Title</label><input type="text" id="pvTitle"></div>
-      <div class="field"><label for="pvYear">Year</label><input type="text" id="pvYear" placeholder="e.g. 1985"></div>
-      <div class="field"><label for="pvLocation">Location</label><input type="text" id="pvLocation"></div>
-      <div class="field"><label for="pvPeople">People</label><input type="text" id="pvPeople" placeholder="Names, separated by commas"></div>
+      <div class="field">
+        <p class="encourage" id="encYear">📅 The year really helps us place this moment.</p>
+        <label for="pvYear">Year</label><input type="text" id="pvYear" placeholder="e.g. 1985">
+      </div>
+      <div class="field">
+        <p class="encourage" id="encLocation">📍 Where did this happen?</p>
+        <label for="pvLocation">Location</label><input type="text" id="pvLocation">
+      </div>
+      <div class="field">
+        <p class="encourage" id="encPeople">👥 Anyone pictured or involved?</p>
+        <label for="pvPeople">People</label><input type="text" id="pvPeople" placeholder="Names, separated by commas">
+      </div>
       <div class="field"><label for="pvType">Type</label>
         <select id="pvType"><option>Photo</option><option>Flyer</option><option>Story</option><option>Event</option></select>
       </div>
@@ -464,7 +490,7 @@ document.addEventListener("keydown", e => { if(e.key === "Escape"){ closeVideo()
    (so an empty form just goes home without nagging).
 ===================================================================== */
 function hasProgress(){
-  if(["serviceName","serviceText","yourName","storyText"].some(id => $(id).value.trim())) return true;
+  if(["serviceName","serviceText","yourName","yourEmail","storyText"].some(id => $(id).value.trim())) return true;
   if(storyMedia) return true;
   return false;
 }
@@ -646,8 +672,45 @@ $("addLinkBtn").addEventListener("click", () => {
 ===================================================================== */
 let nudgeAcked = false;
 
+/* ----- Required: name + email (these HARD-block submission) ----- */
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const validName  = () => !!$("yourName").value.trim();
+const validEmail = () => EMAIL_RE.test($("yourEmail").value.trim());
+$("yourName").addEventListener("input", () => { if(validName()){ $("nameError").style.display = "none"; $("yourName").classList.remove("flag"); } });
+$("yourEmail").addEventListener("input", () => { if(validEmail()){ $("emailError").style.display = "none"; $("yourEmail").classList.remove("flag"); } });
+function checkRequired(){
+  const okName = validName(), okEmail = validEmail();
+  $("nameError").style.display = okName ? "none" : "block";
+  $("yourName").classList.toggle("flag", !okName);
+  $("emailError").style.display = okEmail ? "none" : "block";
+  $("yourEmail").classList.toggle("flag", !okEmail);
+  if(!okName || !okEmail){
+    (!okName ? $("yourName") : $("yourEmail")).focus();
+    $("storyCard").scrollIntoView({behavior:"smooth", block:"center"});
+    return false;
+  }
+  return true;
+}
+
+/* ----- Encouraged (NOT required): year / location / people ----- */
+const ENCOURAGE = [
+  { input:"pvYear",     el:"encYear",     soft:"📅 The year really helps us place this moment.", hard:"Please add a year if you can remember it." },
+  { input:"pvLocation", el:"encLocation", soft:"📍 Where did this happen?",                        hard:"A place helps — please add one if you can." },
+  { input:"pvPeople",   el:"encPeople",   soft:"👥 Anyone pictured or involved?",                  hard:"Please add any names you remember." }
+];
+let encourageAcked = false;
+function resetEncourage(){
+  encourageAcked = false;
+  ENCOURAGE.forEach(c => { $(c.el).textContent = c.soft; $(c.el).classList.remove("alert"); $(c.input).classList.remove("flag"); });
+}
+// red prompt clears the instant they type something in that field
+ENCOURAGE.forEach(c => $(c.input).addEventListener("input", () => {
+  if($(c.input).value.trim()){ $(c.el).textContent = c.soft; $(c.el).classList.remove("alert"); $(c.input).classList.remove("flag"); }
+}));
+
 $("shareBtn").addEventListener("click", async () => {
   hideMsg("storyMsg"); $("nudge").style.display = "none";
+  if(!checkRequired()) return;                              // name + email are required
   const story = $("storyText").value.trim();
   if(!story){ showMsg("storyMsg","Please tell us a little about your photo or memory."); $("storyText").focus(); return; }
   if(story.length > CONFIG.TEXT_CAP){ showMsg("storyMsg","That's a wonderful amount to say — could you trim it just a little?"); return; }
@@ -667,6 +730,8 @@ $("shareBtn").addEventListener("click", async () => {
     $("pvPeople").value = f.people || "";
     $("pvType").value = ["Photo","Flyer","Story","Event"].includes(f.type) ? f.type : "Story";
     $("pvStory").value = f.story || story;
+    resetEncourage();
+    $("finalSubmitBtn").textContent = "Share my story";
     $("storyPreviewCard").style.display = "block";
     autoGrow($("pvStory"));
     $("storyPreviewCard").scrollIntoView({behavior:"smooth", block:"start"});
@@ -688,23 +753,63 @@ $("finalSubmitBtn").addEventListener("click", async () => {
     type:     $("pvType").value,
     story:    $("pvStory").value.trim()
   };
-  if(!story.title){ showMsg("finalMsg","Please give your story a short title."); $("pvTitle").focus(); return; }
-  const name = $("yourName").value.trim();
+  if(!story.title){ $("finalMsg").className = "msg error"; showMsg("finalMsg","Please give your story a short title."); $("pvTitle").focus(); return; }
+
+  // Defensive: name + email are required (collected on the story form above)
+  if(!validName() || !validEmail()){
+    $("finalMsg").className = "msg error";
+    showMsg("finalMsg","Please add your name and a valid email near the top before sharing.");
+    checkRequired();
+    return;
+  }
+
+  // Encouraged (not required): nudge ONCE about empty year/location/people, then allow
+  const emptyEnc = ENCOURAGE.filter(c => !$(c.input).value.trim());
+  if(emptyEnc.length && !encourageAcked){
+    emptyEnc.forEach(c => { $(c.el).textContent = c.hard; $(c.el).classList.add("alert"); $(c.input).classList.add("flag"); });
+    encourageAcked = true;
+    $("finalSubmitBtn").textContent = "Share anyway";
+    $("finalMsg").className = "msg ok";
+    showMsg("finalMsg","No problem if you can't recall these — add what you can, or tap “Share anyway” to send it as-is.");
+    $("storyPreviewCard").scrollIntoView({behavior:"smooth", block:"start"});
+    return;
+  }
+
+  const name  = $("yourName").value.trim();
+  const email = $("yourEmail").value.trim();
 
   const btn = $("finalSubmitBtn");
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Sharing…';
   try{
-    const out = await postAction({ action:"addStoryFromPublic", submittedBy:name, story, media: storyMedia });
+    const out = await postAction({ action:"addStoryFromPublic", submittedBy:name, email, story, media: storyMedia });
     if(!out.ok) throw new Error(out.error || "Save failed.");
+    $("storyCard").style.display = "none";
     $("mediaCard").style.display = "none";
     $("storyPreviewCard").style.display = "none";
     $("successCard").style.display = "block";
     $("successCard").scrollIntoView({behavior:"smooth", block:"start"});
-  }catch(err){ showMsg("finalMsg", friendly(err.message)); }
-  finally{ btn.disabled = false; btn.textContent = "Share my story"; }
+  }catch(err){ $("finalMsg").className = "msg error"; showMsg("finalMsg", friendly(err.message)); }
+  finally{ btn.disabled = false; btn.textContent = encourageAcked ? "Share anyway" : "Share my story"; }
 });
 
-$("shareAnotherBtn").addEventListener("click", () => { window.scrollTo({top:0, behavior:"smooth"}); window.location.reload(); });
+/* "Share another" — reset the story form but KEEP name + email filled in
+   (session memory via in-page state; no reload, no localStorage). */
+$("shareAnotherBtn").addEventListener("click", () => {
+  $("storyText").value = "";
+  storyMedia = null; $("linkInput").value = ""; $("fileInput").value = ""; showMediaPreview();
+  nudgeAcked = false; $("nudge").style.display = "none";
+  hideMsg("storyMsg"); hideMsg("mediaMsg"); hideMsg("finalMsg");
+  ["pvTitle","pvYear","pvLocation","pvPeople","pvStory"].forEach(id => $(id).value = "");
+  $("pvType").value = "Story";
+  resetEncourage();
+  $("finalSubmitBtn").textContent = "Share my story";
+  $("storyCard").style.display = "block";       // yourName / yourEmail keep their values
+  $("mediaCard").style.display = "block";
+  $("storyPreviewCard").style.display = "none";
+  $("successCard").style.display = "none";
+  window.scrollTo({top:0, behavior:"smooth"});
+  $("storyText").focus();
+});
 </script>
 </body>
 </html>
