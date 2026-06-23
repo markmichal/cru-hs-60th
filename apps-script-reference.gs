@@ -107,7 +107,7 @@ const FORM_TAB     = "Form Responses 2";   // public "Share Your Story" submissi
 const STAFF_HEADERS = ["Person Name","Location","Start Year","End Year","Role","Notes","Approved","Submitted By","Submitted At"];
 
 // Timeline event types the history intake may assign (the site styles these).
-const EVENT_TYPES = ["Milestone","Photo","Flyer","Story","Event"];
+const EVENT_TYPES = ["Milestone","Photo","Flyer","Video","Story","Event"];
 
 // PUBLIC share.html settings.
 const STORY_FOLDER_NAME = "Story Uploads";  // Drive folder for public uploads

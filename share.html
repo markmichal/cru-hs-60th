@@ -327,7 +327,7 @@
         <p class="encourage" id="encPeople"></p>
       </div>
       <div class="field"><label for="pvType">Type</label>
-        <select id="pvType"><option>Photo</option><option>Flyer</option><option>Story</option><option>Event</option></select>
+        <select id="pvType"><option>Photo</option><option>Flyer</option><option>Video</option><option>Event</option></select>
       </div>
       <div class="field full"><label for="pvStory">The story</label><textarea id="pvStory"></textarea></div>
     </div>
@@ -733,7 +733,7 @@ $("shareBtn").addEventListener("click", async () => {
     $("pvYear").value = f.year || "";
     $("pvLocation").value = f.location || "";
     $("pvPeople").value = f.people || "";
-    $("pvType").value = ["Photo","Flyer","Story","Event"].includes(f.type) ? f.type : "Story";
+    $("pvType").value = ["Photo","Flyer","Video","Event"].includes(f.type) ? f.type : "Photo";
     $("pvStory").value = f.story || story;
     resetEncourage();
     $("finalSubmitBtn").textContent = "Share my story";
