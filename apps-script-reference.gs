@@ -16,7 +16,7 @@
  *        addServiceFromPublic— append their stints to Staff Service
  *        uploadStoryMedia    — save an uploaded photo/video to Drive
  *        parseStoryText      — alumni "Share this story" (AI)
- *        addStoryFromPublic  — append the story to Form Responses 2
+ *        addStoryFromPublic  — insert the story at the top of the Stories tab
  *
  * --------------------------------------------------------------------------
  * PASTE-AND-REDEPLOY (every time you change this file):
@@ -29,17 +29,26 @@
  *
  *   >>> CHANGED 2026-06-23 — you MUST paste this file in and redeploy a NEW
  *       version for these to take effect:
- *         • addStoryFromPublic now stores the submitter's EMAIL (Email column,
- *           created if missing) and writes a SERVER-SIDE timestamp.
- *         • (share.html now requires name + email before a story can be sent.)
- *         • addStoryFromPublic now maps the submitter's NAME to the form's
- *           existing "Your name" column and the timestamp to the form's
- *           existing "Timestamp" column — it no longer writes "Submitted By" /
- *           "Submitted At" on Form Responses 2 (those duplicated the form's own
- *           columns). After redeploying and confirming a test submission lands
- *           in Your name + Timestamp, you may delete the now-unused
- *           "Submitted By"/"Submitted At" columns from Form Responses 2.
- *           (Staff Service keeps its Submitted By/At — leave that tab alone.)
+ *         • STRUCTURAL PASS:
+ *           - The story/gallery tab is now called "Stories" (was "Form
+ *             Responses 2"). RENAME the actual Sheet tab to "Stories" by hand so
+ *             the code and the Sheet match. (index.html was updated to read it.)
+ *           - Every intake/append handler now writes BY HEADER NAME, never by
+ *             column position — so you can reorder columns (e.g. move Approved /
+ *             On Timeline / Featured to the far left) without breaking writes.
+ *           - New submissions are INSERTED AT THE TOP (row 2), newest first, on
+ *             Stories, Staff Service, and the master timeline.
+ *           - Approved (and On Timeline / Featured where present) is written as
+ *             the literal word "FALSE" on every new row, so your red conditional
+ *             formatting flags it for review.
+ *         • addStoryFromPublic stores the submitter's EMAIL (Email column) and a
+ *           SERVER-SIDE timestamp, maps NAME -> the "Your name" column and the
+ *           time -> the "Timestamp" column; it no longer writes "Submitted By" /
+ *           "Submitted At" on the Stories tab (those duplicated the form's own
+ *           columns). You may delete those two columns from Stories once a test
+ *           submission lands in Your name + Timestamp. (Staff Service keeps its
+ *           Submitted By/At — that tab is intentional provenance; leave it.)
+ *         • (share.html requires name + email before a story can be sent.)
  *
  * --------------------------------------------------------------------------
  * SETUP — do this once (≈5 minutes). Plain-language steps:
@@ -100,7 +109,9 @@ const INTAKE_PIN   = "1951";
 const SETTINGS_TAB = "Site Settings";
 const STAFF_TAB    = "Staff Service";
 const MASTER_TAB   = "Cru HS 60th Anniversary Timeline (master)";
-const FORM_TAB     = "Form Responses 2";   // public "Share Your Story" submissions
+const FORM_TAB     = "Stories";   // story/gallery rows (the website reads this tab).
+                                  // Renamed from "Form Responses 2" — rename the
+                                  // actual Sheet tab to "Stories" to match.
 
 // Header row written when the Staff Service tab is first created. Order matters:
 // the last two columns are internal provenance and are never shown on the site.
@@ -197,25 +208,43 @@ function handleAddStints(body){
     sheet = ss.insertSheet(STAFF_TAB);
     sheet.appendRow(STAFF_HEADERS);
   }
+
+  // Match columns by header name (never by position) so the owner can reorder.
+  const M = colMapper_(sheet);
+  var cPerson   = M.ensureCol("person",       "Person Name");
+  var cLoc      = M.ensureCol("location",     "Location");
+  var cStart    = M.ensureCol("start",        "Start Year");
+  var cEnd      = M.ensureCol("end",          "End Year");
+  var cRole     = M.ensureCol("role",         "Role");
+  var cNotes    = M.ensureCol("notes",        "Notes");
+  var cApproved = M.ensureCol("approved",     "Approved");
+  var cSubBy    = M.ensureCol("submitted by", "Submitted By");
+  var cSubAt    = M.ensureCol("submitted at", "Submitted At");
+  var width = M.headers.length;
+
   const now = new Date();                 // server-side timestamp — never trust the client
-  let added = 0;
-  stints.forEach(s => {
-    const name = String(s.personName || "").trim();
+  var rows = [];
+  stints.forEach(function(s){
+    var name = String(s.personName || "").trim();
     if(!name) return;                     // a row must have a person name
-    sheet.appendRow([
-      name,
-      String(s.location || "").trim(),
-      s.startYear || "",
-      s.endYear   || "",
-      String(s.role  || "").trim(),
-      String(s.notes || "").trim(),
-      false,                              // Approved = FALSE — reviewer turns this on
-      submittedBy,
-      now
-    ]);
-    added++;
+    var row = []; for(var i = 0; i < width; i++) row.push("");
+    function put(ci, v){ if(ci >= 0 && ci < width) row[ci] = v; }
+    put(cPerson,   name);
+    put(cLoc,      String(s.location || "").trim());
+    put(cStart,    s.startYear || "");
+    put(cEnd,      s.endYear   || "");
+    put(cRole,     String(s.role  || "").trim());
+    put(cNotes,    String(s.notes || "").trim());
+    put(cApproved, "FALSE");               // reviewer turns this on
+    put(cSubBy,    submittedBy);
+    put(cSubAt,    now);
+    rows.push(row);
   });
-  return json({ ok:true, added: added });
+  if(!rows.length) return json({ ok:false, error:"No valid rows (each needs a person name)." });
+
+  var startRow = insertTopRows_(sheet, rows.length);   // newest first, just under the header
+  sheet.getRange(startRow, 1, rows.length, width).setValues(rows);
+  return json({ ok:true, added: rows.length, startRow: startRow });
 }
 
 /* ===================== 4) PARSE HISTORY — TIMELINE (AI) ===================== */
@@ -231,10 +260,11 @@ function handleParseHistory(body){
   }
 }
 
-/* ===================== 5) ADD HISTORY EVENTS — TIMELINE (append rows) =====================
- * Appends one row per event to the master timeline tab, matching whatever
- * columns already exist there (by case-insensitive substring on the header).
- * Approved is forced FALSE; Submitted By / Submitted At are written as
+/* ===================== 5) ADD HISTORY EVENTS — TIMELINE (insert rows at top) =====================
+ * Inserts one row per event at the TOP of the master timeline tab (just under
+ * the header, newest first), matching whatever columns already exist there by
+ * case-insensitive substring on the header (never by position). Approved is
+ * forced to the literal "FALSE"; Submitted By / Submitted At are written as
  * internal provenance (the site ignores unrecognized columns). If the master
  * tab is missing the Approved / Submitted By / Submitted At columns, they are
  * created at the end so nothing is lost.
@@ -249,36 +279,23 @@ function handleAddHistoryEvents(body){
   const sheet = ss.getSheetByName(MASTER_TAB);
   if(!sheet) return json({ ok:false, error:"Could not find the timeline tab \"" + MASTER_TAB + "\"." });
 
-  // Header row → lowercased labels, matched by substring.
-  let headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0]
-                  .map(function(h){ return String(h).toLowerCase().trim(); });
-  function colOf(sub){ for(var i = 0; i < headers.length; i++){ if(headers[i].indexOf(sub) >= 0) return i; } return -1; }
-  // Find a column or create it at the far right if it doesn't exist yet.
-  function ensureCol(sub, label){
-    var i = colOf(sub);
-    if(i >= 0) return i;
-    var idx = headers.length;                       // 0-based index of the new column
-    if(sheet.getMaxColumns() < idx + 1){
-      sheet.insertColumnsAfter(sheet.getMaxColumns(), (idx + 1) - sheet.getMaxColumns());
-    }
-    sheet.getRange(1, idx + 1).setValue(label);
-    headers.push(label.toLowerCase());
-    return idx;
-  }
-
-  var cTitle    = colOf("title");
-  var cYear     = colOf("year");
-  var cLocation = colOf("location");
-  var cPeople   = colOf("people");
-  var cType     = colOf("type");
-  var cStory    = colOf("story");
-  var cTimeline = colOf("timeline");                // "On Timeline"
-  var cApproved = ensureCol("approved",     "Approved");
-  var cSubBy    = ensureCol("submitted by", "Submitted By");
-  var cSubAt    = ensureCol("submitted at", "Submitted At");
+  // Match columns by header name (never by position). Title/Year/etc. are used
+  // only if they already exist; Approved/Submitted By/At are created if missing.
+  const M = colMapper_(sheet);
+  var cTitle    = M.colOf("title");
+  var cYear     = M.colOf("year");
+  var cLocation = M.colOf("location");
+  var cPeople   = M.colOf("people");
+  var cType     = M.colOf("type");
+  var cStory    = M.colOf("story");
+  var cTimeline = M.colOf("timeline");              // "On Timeline"
+  var cFeatured = M.colOf("featured");              // optional
+  var cApproved = M.ensureCol("approved",     "Approved");
+  var cSubBy    = M.ensureCol("submitted by", "Submitted By");
+  var cSubAt    = M.ensureCol("submitted at", "Submitted At");
 
   var now = new Date();
-  var width = headers.length;
+  var width = M.headers.length;
   var rows = [];
   events.forEach(function(e){
     var title = clean(e.title);
@@ -292,33 +309,54 @@ function handleAddHistoryEvents(body){
     put(cPeople,   clean(e.people));
     put(cType,     normType(e.type));
     put(cStory,    clean(e.story));
-    put(cTimeline, truthy(e.onTimeline));
-    put(cApproved, false);                          // never auto-approve
+    put(cTimeline, boolStr_(truthy(e.onTimeline)));
+    if(cFeatured >= 0) put(cFeatured, "FALSE");
+    put(cApproved, "FALSE");                         // never auto-approve
     put(cSubBy,    submittedBy);
     put(cSubAt,    now);
     rows.push(row);
   });
   if(!rows.length) return json({ ok:false, error:"No valid events (each needs a title)." });
 
-  // Append right below the last row that actually has a Title. Do NOT use
-  // getLastRow(): the master tab can have many trailing blank-but-formatted
-  // rows (checkbox columns, etc.) that inflate it, which would drop new rows
-  // ~1000 rows down where they look lost. Scanning the Title column finds the
-  // true end of the data.
-  var startRow = lastTitleRow(sheet, cTitle) + 1;
+  var startRow = insertTopRows_(sheet, rows.length);  // newest first, just under the header
   sheet.getRange(startRow, 1, rows.length, width).setValues(rows);
   return json({ ok:true, added: rows.length, startRow: startRow });
 }
 
-// Last 1-based row that has a non-empty value in the Title column.
-function lastTitleRow(sheet, titleColIdx){
-  if(titleColIdx < 0) return sheet.getLastRow();
-  var n = sheet.getMaxRows();
-  var vals = sheet.getRange(1, titleColIdx + 1, n, 1).getValues();
-  for(var r = n - 1; r >= 0; r--){
-    if(String(vals[r][0]).trim() !== "") return r + 1;
+/* ---- Shared write helpers (used by every intake/append handler) ----
+ * colMapper_ reads a tab's header row and matches columns by case-insensitive
+ * substring on the header text, so writes never depend on physical column
+ * position — the owner can reorder columns (e.g. move Approved/On Timeline/
+ * Featured to the far left) without breaking anything. ensureCol() creates a
+ * missing column at the far right.
+ */
+function colMapper_(sheet){
+  var headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0]
+                  .map(function(h){ return String(h).toLowerCase().trim(); });
+  function colOf(sub){ for(var i = 0; i < headers.length; i++){ if(headers[i].indexOf(sub) >= 0) return i; } return -1; }
+  function ensureCol(sub, label){
+    var i = colOf(sub); if(i >= 0) return i;
+    var idx = headers.length;
+    if(sheet.getMaxColumns() < idx + 1) sheet.insertColumnsAfter(sheet.getMaxColumns(), (idx + 1) - sheet.getMaxColumns());
+    sheet.getRange(1, idx + 1).setValue(label);
+    headers.push(String(label).toLowerCase());
+    return idx;
   }
-  return 1;
+  return { headers: headers, colOf: colOf, ensureCol: ensureCol };
+}
+
+// We write the literal words TRUE / FALSE (not booleans) so the owner's
+// conditional formatting (red Approved=FALSE, etc.) colors the cells.
+function boolStr_(v){ return v ? "TRUE" : "FALSE"; }
+
+// Insert `count` blank rows directly below the header (row 1) and return the
+// start row (always 2) so the NEWEST submissions appear first. clearFormat()
+// stops the new rows from inheriting the header's styling; conditional
+// formatting and data validation are sheet/range level and survive it.
+function insertTopRows_(sheet, count){
+  sheet.insertRowsBefore(2, count);
+  sheet.getRange(2, 1, count, sheet.getMaxColumns()).clearFormat();
+  return 2;
 }
 
 /* =====================================================================
@@ -352,23 +390,40 @@ function handleAddServiceFromPublic(body){
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(STAFF_TAB);
   if(!sheet){ sheet = ss.insertSheet(STAFF_TAB); sheet.appendRow(STAFF_HEADERS); }
+
+  // Match columns by header name (never by position).
+  const M = colMapper_(sheet);
+  var cPerson   = M.ensureCol("person",       "Person Name");
+  var cLoc      = M.ensureCol("location",     "Location");
+  var cStart    = M.ensureCol("start",        "Start Year");
+  var cEnd      = M.ensureCol("end",          "End Year");
+  var cRole     = M.ensureCol("role",         "Role");
+  var cNotes    = M.ensureCol("notes",        "Notes");
+  var cApproved = M.ensureCol("approved",     "Approved");
+  var cSubBy    = M.ensureCol("submitted by", "Submitted By");
+  var cSubAt    = M.ensureCol("submitted at", "Submitted At");
+  var width = M.headers.length;
+
   const now = new Date();
-  let added = 0;
+  var rows = [];
   stints.forEach(function(s){
-    const loc = clean(s.location), sy = year(s.startYear), ey = year(s.endYear), role = clean(s.role);
+    var loc = clean(s.location), sy = year(s.startYear), ey = year(s.endYear), role = clean(s.role);
     if(!loc && !sy && !ey && !role) return;     // skip an entirely empty row
-    sheet.appendRow([
-      name,                                     // Person Name = the submitter
-      loc, sy, ey, role,
-      "",                                       // Notes
-      false,                                    // Approved = FALSE
-      name,                                     // Submitted By
-      now                                       // Submitted At
-    ]);
-    added++;
+    var row = []; for(var i = 0; i < width; i++) row.push("");
+    function put(ci, v){ if(ci >= 0 && ci < width) row[ci] = v; }
+    put(cPerson,   name);                       // Person Name = the submitter
+    put(cLoc, loc); put(cStart, sy); put(cEnd, ey); put(cRole, role);
+    put(cNotes,    "");
+    put(cApproved, "FALSE");
+    put(cSubBy,    name);
+    put(cSubAt,    now);
+    rows.push(row);
   });
-  if(!added) return json({ ok:false, error:"Nothing to save yet." });
-  return json({ ok:true, added: added });
+  if(!rows.length) return json({ ok:false, error:"Nothing to save yet." });
+
+  var startRow = insertTopRows_(sheet, rows.length);   // newest first, just under the header
+  sheet.getRange(startRow, 1, rows.length, width).setValues(rows);
+  return json({ ok:true, added: rows.length, startRow: startRow });
 }
 
 /* ---- 7c) uploadStoryMedia: save a base64 file to the "Story Uploads" folder ----
@@ -428,12 +483,12 @@ function handleParseStoryText(body){
   }catch(err){ return json({ ok:false, error: publicErr(err) }); }
 }
 
-/* ---- 7e) addStoryFromPublic: append the story to Form Responses 2 ----
- * Matches existing columns by case-insensitive substring (like the history
- * intake); creates any it needs at the far right. A photo/flyer link goes in
- * the Photo column; a video link goes in the Video column AND gets a
- * "Watch the video" button so the site embeds a player. Approved/On Timeline
- * are forced FALSE. */
+/* ---- 7e) addStoryFromPublic: insert the story at the TOP of the Stories tab ----
+ * Matches existing columns by case-insensitive substring (never by position);
+ * creates any it needs at the far right. A photo/flyer link goes in the Photo
+ * column; a video link goes in the Video column AND gets a "Watch the video"
+ * button so the site embeds a player. Approved / On Timeline / Featured are
+ * forced to the literal "FALSE". The row is inserted at row 2 (newest first). */
 function handleAddStoryFromPublic(body){
   const name  = String(body.submittedBy || "").trim();
   const s     = body.story || {};
@@ -452,43 +507,34 @@ function handleAddStoryFromPublic(body){
                      "Video","Button Label","Button URL","Approved","On Timeline","Featured"]);
   }
 
-  let headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0]
-                  .map(function(h){ return String(h).toLowerCase().trim(); });
-  function colOf(sub){ for(var i=0;i<headers.length;i++){ if(headers[i].indexOf(sub)>=0) return i; } return -1; }
-  function ensureCol(sub, label){
-    var i = colOf(sub); if(i >= 0) return i;
-    var idx = headers.length;
-    if(sheet.getMaxColumns() < idx + 1) sheet.insertColumnsAfter(sheet.getMaxColumns(), (idx + 1) - sheet.getMaxColumns());
-    sheet.getRange(1, idx + 1).setValue(label);
-    headers.push(label.toLowerCase());
-    return idx;
-  }
-
-  var cTitle    = ensureCol("title",        "Title");
-  var cYear     = ensureCol("year",         "Year");
-  var cLoc      = ensureCol("location",     "Location");
-  var cPeople   = ensureCol("people",       "People");
-  var cType     = ensureCol("type",         "Type");
-  var cStory    = ensureCol("story",        "Story");
-  var cPhoto    = ensureCol("photo",        "Photo");
-  var cApproved = ensureCol("approved",     "Approved");
-  var cTimeline = ensureCol("timeline",     "On Timeline");
+  // Match columns by header name (never by position) so the owner can reorder.
+  const M = colMapper_(sheet);
+  var cTitle    = M.ensureCol("title",        "Title");
+  var cYear     = M.ensureCol("year",         "Year");
+  var cLoc      = M.ensureCol("location",     "Location");
+  var cPeople   = M.ensureCol("people",       "People");
+  var cType     = M.ensureCol("type",         "Type");
+  var cStory    = M.ensureCol("story",        "Story");
+  var cPhoto    = M.ensureCol("photo",        "Photo");
+  var cApproved = M.ensureCol("approved",     "Approved");
+  var cTimeline = M.ensureCol("timeline",     "On Timeline");
+  var cFeatured = M.ensureCol("featured",     "Featured");
   // The submitter's NAME goes in the form's existing "Your name" column, and the
   // SERVER-SIDE timestamp goes in the form's existing "Timestamp" column. We no
   // longer write separate "Submitted By"/"Submitted At" columns here — those
   // duplicated the form's own columns. (Staff Service still uses Submitted By/At
   // intentionally as provenance; that tab is untouched.)
-  var cName     = ensureCol("your name",  "Your name");
-  var cEmail    = colOf("email");  if(cEmail < 0) cEmail = ensureCol("email", "Email");
-  var cStamp    = ensureCol("timestamp",  "Timestamp");
+  var cName     = M.ensureCol("your name",  "Your name");
+  var cEmail    = M.colOf("email");  if(cEmail < 0) cEmail = M.ensureCol("email", "Email");
+  var cStamp    = M.ensureCol("timestamp",  "Timestamp");
   var cVideo = -1, cBtnLabel = -1, cBtnUrl = -1;
   if(isVideo && mediaUrl){
-    cVideo    = ensureCol("video",        "Video");
-    cBtnLabel = ensureCol("button label", "Button Label");
-    cBtnUrl   = ensureCol("button url",   "Button URL");
+    cVideo    = M.ensureCol("video",        "Video");
+    cBtnLabel = M.ensureCol("button label", "Button Label");
+    cBtnUrl   = M.ensureCol("button url",   "Button URL");
   }
 
-  var width = headers.length;
+  var width = M.headers.length;
   var row = []; for(var i = 0; i < width; i++) row.push("");
   function put(ci, v){ if(ci >= 0 && ci < width) row[ci] = v; }
   put(cTitle,    title);
@@ -496,8 +542,9 @@ function handleAddStoryFromPublic(body){
   put(cLoc,      clean(s.location));
   put(cPeople,   clean(s.people));
   put(cStory,    clean(s.story));
-  put(cApproved, false);
-  put(cTimeline, false);
+  put(cApproved, "FALSE");                        // reviewer approves before it shows
+  put(cTimeline, "FALSE");
+  put(cFeatured, "FALSE");
   var now = new Date();                          // server-side — never trust the client
   put(cName,     name);
   put(cEmail,    clean(body.email));
@@ -512,7 +559,7 @@ function handleAddStoryFromPublic(body){
     if(mediaUrl) put(cPhoto, mediaUrl);
   }
 
-  var startRow = lastTitleRow(sheet, cTitle) + 1;
+  var startRow = insertTopRows_(sheet, 1);          // newest first, just under the header
   sheet.getRange(startRow, 1, 1, width).setValues([row]);
   return json({ ok:true, startRow: startRow });
 }

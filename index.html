@@ -544,7 +544,9 @@
    ---------------------------------------------------------------------
    SHEET_ID    The master Google Sheet. Must be shared "Anyone with the
                link can view."
-   FORM_TAB    Tab where Google Form submissions land.
+   FORM_TAB    Tab the site reads story/gallery rows from ("Stories"; was
+               "Form Responses 2"). Read by header name, so columns can be
+               reordered freely. Rename the actual Sheet tab to "Stories".
    FORM_URL    Default destination for the submit buttons. We've retired the
                old Google Form for our own in-site story page (share.html);
                see storySubmitUrl() — any saved Google-Form URL is ignored so
@@ -562,7 +564,7 @@
 const CONFIG = {
   SHEET_ID: "1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE",
   MASTER_TAB: "Cru HS 60th Anniversary Timeline (master)",
-  FORM_TAB: "Form Responses 2",
+  FORM_TAB: "Stories",   // story/gallery rows (renamed from "Form Responses 2")
   // Both "Share Your Story" submit buttons now go to our own in-site story page
   // (share.html), not the old Google Form. Relative path → works on the custom
   // domain and the github.io/cru-hs-60th/ path alike. (Old Google Form, kept for
