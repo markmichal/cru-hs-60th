@@ -28,6 +28,15 @@
  *   The site (index.html, intake.html, history-intake.html, share.html) all use
  *   that one URL — no other change needed.
  *
+ *   >>> CHANGED 2026-06-25 — added convertStoryTypeToPhoto(): a one-time MANUAL
+ *       cleanup that changes every "Story"-typed row on the Stories tab to
+ *       "Photo" (the site retired the "Story" gallery filter). Run it ONCE from
+ *       the Apps Script editor (pick the function → Run) or from the Sheet's
+ *       "Cru 60th" menu → "Convert Story type → Photo". This is editor/menu-only
+ *       and does NOT require a web-app redeploy by itself — just paste this file
+ *       in and run it. (Pasting also brings in the 2026-06-24 Stage 2 change
+ *       below; redeploy a new version if that auto-rename isn't live yet.)
+ *
  *   >>> CHANGED 2026-06-24 — paste this file in and redeploy a NEW version for
  *       this to take effect:
  *         • STAGE 2 — PUBLIC UPLOAD AUTO-RENAMING: a photo or video uploaded on
@@ -884,6 +893,7 @@ function onOpen(){
   SpreadsheetApp.getUi()
     .createMenu("Cru 60th")
     .addItem("Rename linked photos", "renameLinkedPhotos")
+    .addItem("Convert Story type → Photo (one-time)", "convertStoryTypeToPhoto")
     .addToUi();
 }
 
@@ -909,4 +919,35 @@ function renameLinkedPhotos(){
     }
   });
   SpreadsheetApp.getUi().alert("Renamed " + done + " of " + total + " linked photo file(s).");
+}
+
+// One-time MANUAL cleanup utility (run from the Apps Script editor or the
+// "Cru 60th" menu — it is NOT automatic and no trigger calls it). Walks the
+// Stories tab and changes every row whose Type is "Story" to "Photo", so the
+// retired "Story" type disappears from the site's gallery type filters. Matches
+// the Type column BY HEADER NAME (case-insensitive), so column order is irrelevant.
+// Safe to re-run: rows already set to anything other than "Story" are left alone.
+function convertStoryTypeToPhoto(){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(FORM_TAB);
+  if(!sheet || sheet.getLastRow() < 2){
+    SpreadsheetApp.getUi().alert('No rows found on the "' + FORM_TAB + '" tab.');
+    return;
+  }
+  const values  = sheet.getDataRange().getValues();
+  const headers = values[0].map(function(h){ return String(h).toLowerCase().trim(); });
+  var cType = -1;
+  for(var i = 0; i < headers.length; i++){ if(headers[i].indexOf("type") >= 0){ cType = i; break; } }
+  if(cType < 0){
+    SpreadsheetApp.getUi().alert('Could not find a "Type" column on the "' + FORM_TAB + '" tab.');
+    return;
+  }
+  var changed = 0;
+  for(var r = 1; r < values.length; r++){
+    if(String(values[r][cType]).trim().toLowerCase() === "story"){
+      sheet.getRange(r + 1, cType + 1).setValue("Photo");
+      changed++;
+    }
+  }
+  SpreadsheetApp.getUi().alert('Converted ' + changed + ' "Story" item(s) to "Photo" on the "' + FORM_TAB + '" tab.');
 }

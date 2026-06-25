@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cru High School — 60 Years of Stories</title>
+<title>Cru High School History</title>
 
 <!-- Open Graph / social share preview -->
-<meta property="og:title" content="Cru High School — 60 Years of Stories">
+<meta property="og:title" content="Cru High School History">
 <meta property="og:description" content="Explore sixty years of moments, people, and places from Cru's high school ministry. Add your own photos and stories to the collection.">
 <meta property="og:image" content="https://drive.google.com/thumbnail?id=1DD3lcs1an46KZVMD1RhJ01chz9W70Vs8&sz=w1200">
 <meta property="og:url" content="https://highschoolhistory.crutastic.com">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Cru High School — 60 Years of Stories">
+<meta name="twitter:title" content="Cru High School History">
 <meta name="twitter:description" content="Explore sixty years of moments, people, and places from Cru's high school ministry. Add your own photos and stories to the collection.">
 <meta name="twitter:image" content="https://drive.google.com/thumbnail?id=1DD3lcs1an46KZVMD1RhJ01chz9W70Vs8&sz=w1200">
 
@@ -53,7 +53,9 @@
     width: 52px; height: 52px; border-radius: 50%; background: var(--yellow); color: var(--black);
     display: flex; align-items: center; justify-content: center;
     font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;
+    overflow: hidden;
   }
+  .badge-60 img { width: 66%; height: 66%; object-fit: contain; display: block; }
   .brand h1 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.25rem; line-height: 1.1; letter-spacing: -0.02em; color: var(--black); }
   .brand .sub { font-family: 'Sora', sans-serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); }
   nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -385,15 +387,15 @@
 
 <header>
   <div class="brand">
-    <div class="badge-60" data-set="badgeText">60</div>
+    <div class="badge-60"><img src="cru-logo.png" alt="Cru logo"></div>
     <div>
-      <h1 data-set="headerTitle">Cru High School</h1>
-      <div class="sub" data-set="headerSubtitle">1965 – 2025 &middot; Sixty Years of Stories</div>
+      <h1 data-set="headerTitle">Cru High School History</h1>
+      <div class="sub" data-set="headerSubtitle">How God has used Cru in the lives of teenagers</div>
     </div>
   </div>
   <nav>
     <button class="nav-btn active" data-view="timeline" data-set="navTimeline">Timeline</button>
-    <button class="nav-btn" data-view="gallery" data-set="navGallery">Gallery</button>
+    <button class="nav-btn" data-view="gallery" data-set="navGallery">Stories</button>
     <button class="nav-btn" data-view="people" data-set="navPeople">People</button>
     <button class="nav-btn" data-view="locations" data-set="navLocations">Locations</button>
     <button class="nav-btn submit-cta" id="submitBtn" data-set="submitLabel">Share Your Story</button>
@@ -434,12 +436,12 @@
   <section class="view" id="view-gallery">
     <div class="filter-bar">
       <input type="search" id="searchBox" placeholder="Search titles, stories, places, people&hellip;" aria-label="Search submissions">
-      <select id="decadeFilter" aria-label="Filter by era"><option value="">All eras</option></select>
       <select id="locationFilter" aria-label="Filter by location"><option value="">All locations</option></select>
       <select id="personFilter" aria-label="Filter by person"><option value="">All people</option></select>
       <div class="type-chips" id="typeChips"></div>
       <button class="clear-filters" id="clearFilters">Clear all</button>
     </div>
+    <div class="era-tabs" id="galleryDecades" aria-label="Filter by decade"></div>
     <div class="result-count" id="resultCount"></div>
     <div class="grid" id="galleryGrid"></div>
     <div class="empty-state" id="galleryEmpty" style="display:none">
@@ -586,7 +588,6 @@ const CONFIG = {
    tab override them. */
 const SETTINGS_SCHEMA = [
   { section: "Header" },
-  { key:"badgeText",      label:"Badge (the circle in the corner)" },
   { key:"headerTitle",    label:"Site title" },
   { key:"headerSubtitle", label:"Subtitle" },
   { key:"navTimeline",    label:"Tab 1 label" },
@@ -625,7 +626,7 @@ const SETTINGS_SCHEMA = [
 let DATA = [];
 let STINTS = [];            // staff-service rows (one per person/place/timespan)
 let SETTINGS = {};          // values loaded from the Site Settings tab
-let filters = { search:"", era:"", location:"", person:"", type:"" };
+let filters = { search:"", decade:"", location:"", person:"", type:"" };
 let currentEra = null;
 let editing = false;
 let HERO = [];              // photos tagged "Featured" for the hero carousel
@@ -935,7 +936,7 @@ function cardHTML(item){
 function applyFilters(){
   const q = filters.search.toLowerCase();
   return DATA.filter(d => {
-    if(filters.era && eraOf(d.year) !== filters.era) return false;
+    if(filters.decade && decadeOf(d.year) !== filters.decade) return false;
     if(filters.location && d.location !== filters.location) return false;
     if(filters.person && !peopleList(d).includes(filters.person)) return false;
     if(filters.type && d.type !== filters.type) return false;
@@ -955,11 +956,16 @@ function renderGallery(){
 }
 
 function buildFilterOptions(){
-  const eras = eraList();
+  const decades = [...new Set(DATA.map(d=>decadeOf(d.year)).filter(Boolean))].sort();
   const locs = [...new Set(DATA.map(d=>d.location).filter(Boolean))].sort();
   const people = [...new Set(DATA.flatMap(peopleList))].sort();
-  const types = [...new Set(DATA.map(d=>d.type).filter(Boolean))];
-  $("decadeFilter").innerHTML = `<option value="">All eras</option>` + eras.map(d=>`<option>${esc(d)}</option>`).join("");
+  // The "Story" type is retired — items are Photo/Flyer/Video/Event/Milestone.
+  const types = [...new Set(DATA.map(d=>d.type).filter(Boolean))].filter(t => t.toLowerCase() !== "story");
+  // Decade bar: "All Decades" + one button per decade that actually has items.
+  // Reuses the timeline's .era-tab styling; clicks handled in #galleryDecades.
+  $("galleryDecades").innerHTML =
+    `<button class="era-tab ${!filters.decade?'active':''}" data-decade="">All Decades</button>` +
+    decades.map(d=>`<button class="era-tab ${filters.decade===d?'active':''}" data-decade="${esc(d)}">${esc(d)}</button>`).join("");
   $("locationFilter").innerHTML = `<option value="">All locations</option>` + locs.map(l=>`<option>${esc(l)}</option>`).join("");
   $("personFilter").innerHTML = `<option value="">All people</option>` + people.map(p=>`<option>${esc(p)}</option>`).join("");
   $("typeChips").innerHTML = types.map(t=>`<button class="chip ${filters.type===t?'active':''}" data-type="${esc(t)}">${esc(t)}</button>`).join("");
@@ -1190,9 +1196,10 @@ function closeModal(){
 
 // Clicking a year takes you to the Gallery showing everything from that year.
 function goToYear(year){
-  filters = { search:String(year), era:"", location:"", person:"", type:"" };
+  filters = { search:String(year), decade:"", location:"", person:"", type:"" };
   $("searchBox").value = String(year);
-  $("decadeFilter").value = ""; $("locationFilter").value = ""; $("personFilter").value = "";
+  $("locationFilter").value = ""; $("personFilter").value = "";
+  document.querySelectorAll("#galleryDecades .era-tab").forEach(b => b.classList.toggle("active", !b.dataset.decade));
   document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
   renderGallery();
   switchView("gallery");
@@ -1388,6 +1395,16 @@ document.addEventListener("click", e => {
     return;
   }
 
+  // Gallery decade bar — must be checked BEFORE the timeline era-tab handler
+  // below, since both reuse the .era-tab class. Scoped to #galleryDecades.
+  const decBtn = e.target.closest("#galleryDecades .era-tab");
+  if(decBtn){
+    filters.decade = decBtn.dataset.decade || "";
+    document.querySelectorAll("#galleryDecades .era-tab").forEach(b => b.classList.toggle("active", b === decBtn));
+    renderGallery();
+    return;
+  }
+
   const eraTab = e.target.closest(".era-tab");
   if(eraTab){
     currentEra = eraTab.dataset.era === "__all__" ? null : eraTab.dataset.era;
@@ -1419,8 +1436,9 @@ document.addEventListener("click", e => {
   }
 
   if(e.target.id === "clearFilters"){
-    filters = { search:"", era:"", location:"", person:"", type:"" };
-    $("searchBox").value = ""; $("decadeFilter").value = ""; $("locationFilter").value = ""; $("personFilter").value = "";
+    filters = { search:"", decade:"", location:"", person:"", type:"" };
+    $("searchBox").value = ""; $("locationFilter").value = ""; $("personFilter").value = "";
+    document.querySelectorAll("#galleryDecades .era-tab").forEach(b => b.classList.toggle("active", !b.dataset.decade));
     document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
     renderGallery(); return;
   }
@@ -1439,7 +1457,6 @@ document.addEventListener("click", e => {
 });
 
 $("searchBox").addEventListener("input", e => { filters.search = e.target.value; renderGallery(); });
-$("decadeFilter").addEventListener("change", e => { filters.era = e.target.value; renderGallery(); });
 $("locationFilter").addEventListener("change", e => { filters.location = e.target.value; renderGallery(); });
 $("personFilter").addEventListener("change", e => { filters.person = e.target.value; renderGallery(); });
 document.addEventListener("keydown", e => {
