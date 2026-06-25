@@ -805,7 +805,7 @@ $("shareAnotherBtn").addEventListener("click", () => {
   nudgeAcked = false; $("nudge").style.display = "none";
   hideMsg("storyMsg"); hideMsg("mediaMsg"); hideMsg("finalMsg");
   ["pvTitle","pvYear","pvLocation","pvPeople","pvStory"].forEach(id => $(id).value = "");
-  $("pvType").value = "Story";
+  $("pvType").value = "Photo";   // "Story" was retired from this dropdown; default to Photo
   resetEncourage();
   $("finalSubmitBtn").textContent = "Share my story";
   $("storyCard").style.display = "block";       // yourName / yourEmail keep their values
