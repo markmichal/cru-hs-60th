@@ -16,7 +16,8 @@
  *        addServiceFromPublic— append their stints to Staff Service
  *        uploadStoryMedia    — save an uploaded photo/video to Drive
  *        parseStoryText      — alumni "Share this story" (AI)
- *        addStoryFromPublic  — insert the story at the top of the Stories tab
+ *        addStoryFromPublic  — insert the story at the top of the Stories tab,
+ *                              and auto-rename the uploaded file (Stage 2)
  *
  * --------------------------------------------------------------------------
  * PASTE-AND-REDEPLOY (every time you change this file):
@@ -26,6 +27,19 @@
  *      "New version" → Deploy. The web app URL stays the SAME.
  *   The site (index.html, intake.html, history-intake.html, share.html) all use
  *   that one URL — no other change needed.
+ *
+ *   >>> CHANGED 2026-06-24 — paste this file in and redeploy a NEW version for
+ *       this to take effect:
+ *         • STAGE 2 — PUBLIC UPLOAD AUTO-RENAMING: a photo or video uploaded on
+ *           share.html is now auto-renamed at submission time to the same clean
+ *           "Year — Title — People.ext" name the Google-Form path already uses.
+ *           It happens inside addStoryFromPublic (after the row is written, so it
+ *           can never lose a submission) and only touches files in your own "Story
+ *           Uploads" Drive folder — pasted YouTube/Drive links that aren't ours
+ *           are left alone. No new trigger or permission beyond the Drive access
+ *           you already approved for "Story Uploads". This is the only change in
+ *           this version; if you already pasted/redeployed the 2026-06-23 version,
+ *           this redeploy just adds the auto-rename.
  *
  *   >>> CHANGED 2026-06-23 — you MUST paste this file in and redeploy a NEW
  *       version for these to take effect:
@@ -428,7 +442,8 @@ function handleAddServiceFromPublic(body){
 
 /* ---- 7c) uploadStoryMedia: save a base64 file to the "Story Uploads" folder ----
  * Returns a link in the id= form that the site's driveImg()/videoInfo() both
- * understand. Stage 1 keeps a temporary name; Stage 2 will auto-rename. */
+ * understand. The file keeps a temporary name here; addStoryFromPublic renames it
+ * to "Year — Title — People.ext" once those fields are known (Stage 2). */
 function handleUploadStoryMedia(body){
   try{
     const data = String(body.dataBase64 || "");
@@ -561,6 +576,13 @@ function handleAddStoryFromPublic(body){
 
   var startRow = insertTopRows_(sheet, 1);          // newest first, just under the header
   sheet.getRange(startRow, 1, 1, width).setValues([row]);
+
+  // Stage 2: auto-rename the just-uploaded Drive file to match Title/Year/People.
+  // After the write so a rename hiccup can never lose the submission. Photo links
+  // and uploaded-video links alike live in "Story Uploads"; pasted YouTube/Drive
+  // links that aren't ours simply no-op (driveFileIds finds nothing to rename).
+  try{ renameStoryUpload_(mediaUrl, s.year, title, s.people); }catch(e){}
+
   return json({ ok:true, startRow: startRow });
 }
 
@@ -810,6 +832,9 @@ function fileExt(file){
   if(mime === "image/gif")  return "gif";
   if(mime === "image/webp") return "webp";
   if(mime === "application/pdf") return "pdf";
+  if(mime === "video/mp4")  return "mp4";
+  if(mime === "video/quicktime") return "mov";
+  if(mime === "video/webm") return "webm";
   return "";
 }
 
@@ -821,6 +846,19 @@ function renamePhotoFile(id, year, title, people, idx){
     if(file.getName() !== name) file.setName(name);
     return name;
   }catch(err){ return ""; }   // skip quietly — e.g. not found or not editable
+}
+
+// Stage 2 — auto-rename a PUBLIC share.html upload at submission time. The file
+// was saved to "Story Uploads" with a temporary name by uploadStoryMedia, before
+// the title/year/people were known; now that addStoryFromPublic has the parsed
+// fields we can give the Drive file the same clean "Year — Title — People.ext"
+// name as the form-submit path. driveFileIds() returns [] for YouTube/external
+// pasted links, so those are left untouched — only our own Drive files rename.
+// Fails quietly (renamePhotoFile swallows its own errors); never blocks the write.
+function renameStoryUpload_(mediaUrl, year, title, people){
+  driveFileIds(mediaUrl).forEach(function(id, i){
+    renamePhotoFile(id, year, title, people, i);
+  });
 }
 
 // Installable "on form submit" trigger (see EXTRA SETUP above). Renames the

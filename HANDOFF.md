@@ -1,10 +1,9 @@
 # Handoff — Cru HS 60th Anniversary Site
 
-> **WHERE WE ARE (2026-06-24).** All code through commit `a96966f` is committed and pushed to `main`; the index.html changes are live on GitHub Pages. The newest work (this session) is in **Stage 1.2, Stage 1.3, and the structural pass** below. **Two owner actions gate the latest work and must be done in the Google Sheet — code alone does not finish them:**
-> 1. **Rename the Sheet tab `Form Responses 2` → `Stories`** (exact spelling), then **confirm the gallery still loads** at https://highschoolhistory.crutastic.com — see the ⭐ checklist under "Stage 1.3 — structural pass".
-> 2. **Paste the updated `apps-script-reference.gs` into the Sheet's Apps Script editor and redeploy a NEW version** — this single redeploy carries ALL pending server changes: the structural pass (write-by-header-name, insert-at-top, literal FALSE), the Video type, and the email/Your-name/Timestamp mapping. Until it's redeployed, share.html's buttons error and intake writes use the old behavior.
+> **WHERE WE ARE (2026-06-24, later session).** The owner has already done the tab rename (`Form Responses 2` → `Stories`) and the earlier Apps Script redeploys, so the Stage 1.2 / 1.3 / structural-pass server changes are live. This session added **Stage 2 — public-upload auto-renaming** (see the Stage 2 section near the bottom), an `apps-script-reference.gs`-only change. **One owner action remains:**
+> - **Paste the updated `apps-script-reference.gs` into the Sheet's Apps Script editor and redeploy a NEW version** (same web app URL). This carries the Stage 2 auto-rename — no other change in this version, no new trigger or permission. See the ">>> CHANGED 2026-06-24" note at the top of the .gs.
 >
-> Nothing is left uncommitted in the repo. (The `* 2.*` files in the folder are Google Drive sync-conflict duplicates — byte-identical junk, now gitignored; safe to delete.)
+> The Stage-2 change is `.gs`-only — index.html, share.html, and the intakes are unchanged. The `* 2.*` Google Drive sync-conflict duplicates that used to litter the folder have been **deleted** this session (they were byte-identical junk, already gitignored).
 
 ## Status as of 2026-06-18
 
@@ -105,8 +104,15 @@ A **public, photo-first AI story submission page** — no PIN. Single static pag
 3. Optionally set `welcomeVideoUrl` (+ thumb/label) in the hidden editor (PIN 6060) to switch on the welcome bar.
 4. Smoke-test `/share.html` end to end after redeploy.
 
-### Stage 2 (later)
-Photo **auto-renaming** for public uploads (mirror the existing form-submit renamer), and any polish from real-world testing.
+### Stage 2 (2026-06-24) — DONE (pending redeploy)
+Photo/video **auto-renaming** for public share.html uploads now mirrors the existing form-submit renamer. Implemented entirely in `apps-script-reference.gs`:
+- A new `renameStoryUpload_()` helper renames the just-uploaded Drive file to the same clean **"Year — Title — People.ext"** convention the Google-Form path uses (reusing the existing `buildPhotoName` / `renamePhotoFile` / `driveFileIds` / `fileExt` helpers).
+- It's called at the **end of `addStoryFromPublic`**, *after* the row is written (so a rename hiccup can never lose a submission) and wrapped in try/catch. The rename is done at submit time, not upload time, because the Title/Year/People aren't known when `uploadStoryMedia` first saves the file.
+- Only files in the owner's **"Story Uploads"** Drive folder are touched; pasted **YouTube/external links no-op** (`driveFileIds` finds no ID to rename). Works for both photo and video uploads (`fileExt` now also maps mp4/mov/webm).
+- **No new trigger or permission** beyond the Drive access already approved for "Story Uploads". No index.html/share.html change — server-side only.
+- Verified locally: `apps-script-reference.gs` passes `node --check` (via a .js copy). **Owner action: one redeploy** of the Apps Script (Manage deployments → New version, same URL) to make it live — see the ">>> CHANGED 2026-06-24" note at the top of the .gs. After redeploy, submit a test story with a photo on `/share.html` and confirm the file in the "Story Uploads" Drive folder is renamed to "Year — Title — People".
+
+*Remaining:* any polish from real-world testing.
 
 ## Earlier next task (now done) — build `share.html`
 Built as Stage 1 above. Stage 2 (auto-rename) remains.
