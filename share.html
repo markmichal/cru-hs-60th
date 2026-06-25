@@ -812,8 +812,10 @@ $("shareAnotherBtn").addEventListener("click", () => {
   $("mediaCard").style.display = "block";
   $("storyPreviewCard").style.display = "none";
   $("successCard").style.display = "none";
-  window.scrollTo({top:0, behavior:"smooth"});
-  $("storyText").focus();
+  // Land at the TOP of the "Share a photo, flyer, or video" section so the
+  // Add a Photo button is the first thing they see (natural top-to-bottom flow).
+  // No focus() here — focusing the story textarea would scroll back down past it.
+  $("mediaCard").scrollIntoView({behavior:"smooth", block:"start"});
 });
 </script>
 </body>

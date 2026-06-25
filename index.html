@@ -55,7 +55,7 @@
     font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.1rem; flex-shrink: 0;
     overflow: hidden;
   }
-  .badge-60 img { width: 66%; height: 66%; object-fit: contain; display: block; }
+  .badge-60 img { width: 95%; height: 95%; object-fit: contain; display: block; }
   .brand h1 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.25rem; line-height: 1.1; letter-spacing: -0.02em; color: var(--black); }
   .brand .sub { font-family: 'Sora', sans-serif; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase; color: var(--graphite); }
   nav { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -199,18 +199,22 @@
   .item-btn:hover { background: var(--black); }
 
   /* ============ FILTER BAR ============ */
-  .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; padding: 24px 0 20px; }
+  /* Three equal-width controls (search + two dropdowns), each one-third of the
+     row; they stack to full width on narrow screens. */
+  .filter-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 24px 0 14px; }
   .filter-bar input[type="search"], .filter-bar select {
     background: var(--white); border: 1px solid var(--gray); color: var(--black);
     border-radius: 3px; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 0.88rem;
+    width: 100%; min-width: 0;
   }
-  .filter-bar input[type="search"] { flex: 1 1 200px; min-width: 160px; }
-  .filter-bar select { min-width: 130px; }
   .filter-bar input:focus, .filter-bar select:focus { outline: 2px solid var(--yellow); outline-offset: 1px; }
+  @media (max-width: 560px){ .filter-bar { grid-template-columns: 1fr; } }
+  /* Type filter buttons sit on their own row below the three controls. */
+  .type-chips-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-bottom: 20px; }
   .type-chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .chip { background: var(--white); border: 1px solid var(--gray); color: var(--graphite); border-radius: 20px; padding: 7px 14px; font-size: 0.8rem; font-weight: 600; }
   .chip.active { background: var(--turquoise); border-color: var(--turquoise); color: var(--white); }
-  .clear-filters { background: none; border: none; color: var(--graphite); font-size: 0.8rem; text-decoration: underline; }
+  .clear-filters { background: none; border: none; color: var(--graphite); font-size: 0.8rem; text-decoration: underline; margin-left: auto; }
   .result-count { color: var(--graphite); font-size: 0.85rem; padding-bottom: 14px; }
 
   /* ============ GALLERY GRID ============ */
@@ -434,14 +438,16 @@
 
   <!-- GALLERY VIEW -->
   <section class="view" id="view-gallery">
+    <div class="era-tabs" id="galleryDecades" aria-label="Filter by decade"></div>
     <div class="filter-bar">
-      <input type="search" id="searchBox" placeholder="Search titles, stories, places, people&hellip;" aria-label="Search submissions">
+      <input type="search" id="searchBox" placeholder="Search titles and stories&hellip;" aria-label="Search titles and stories">
       <select id="locationFilter" aria-label="Filter by location"><option value="">All locations</option></select>
       <select id="personFilter" aria-label="Filter by person"><option value="">All people</option></select>
+    </div>
+    <div class="type-chips-row">
       <div class="type-chips" id="typeChips"></div>
       <button class="clear-filters" id="clearFilters">Clear all</button>
     </div>
-    <div class="era-tabs" id="galleryDecades" aria-label="Filter by decade"></div>
     <div class="result-count" id="resultCount"></div>
     <div class="grid" id="galleryGrid"></div>
     <div class="empty-state" id="galleryEmpty" style="display:none">
