@@ -1,5 +1,11 @@
 # Handoff — Cru HS 60th Anniversary Site
 
+> **WHERE WE ARE (2026-06-24).** All code through commit `a96966f` is committed and pushed to `main`; the index.html changes are live on GitHub Pages. The newest work (this session) is in **Stage 1.2, Stage 1.3, and the structural pass** below. **Two owner actions gate the latest work and must be done in the Google Sheet — code alone does not finish them:**
+> 1. **Rename the Sheet tab `Form Responses 2` → `Stories`** (exact spelling), then **confirm the gallery still loads** at https://highschoolhistory.crutastic.com — see the ⭐ checklist under "Stage 1.3 — structural pass".
+> 2. **Paste the updated `apps-script-reference.gs` into the Sheet's Apps Script editor and redeploy a NEW version** — this single redeploy carries ALL pending server changes: the structural pass (write-by-header-name, insert-at-top, literal FALSE), the Video type, and the email/Your-name/Timestamp mapping. Until it's redeployed, share.html's buttons error and intake writes use the old behavior.
+>
+> Nothing is left uncommitted in the repo. (The `* 2.*` files in the folder are Google Drive sync-conflict duplicates — byte-identical junk, now gitignored; safe to delete.)
+
 ## Status as of 2026-06-18
 
 **Current direction: working from GitHub (this repo). Apps Script "Site 2" is shelved for now — but fully built and preserved, so it can be revived if Cru policy later requires all-Google hosting.**

@@ -1,0 +1,7 @@
+# macOS / editor cruft
+.DS_Store
+.claude/
+
+# Google Drive sync conflict copies (e.g. "index 2.html", "CNAME 2")
+* 2.*
+* 2
