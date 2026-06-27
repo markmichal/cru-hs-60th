@@ -197,6 +197,9 @@
     font-weight: 700; font-size: 0.78rem; padding: 6px 14px; border-radius: 3px; text-decoration: none; border: none;
   }
   .item-btn:hover { background: var(--black); }
+  /* Quiet, last-resort link to a video's source (not a primary CTA). */
+  .watch-link { display: inline-block; margin-top: 10px; color: #2563a8; font-size: 0.85rem; text-decoration: underline; font-weight: 400; }
+  .watch-link:hover { color: var(--black); }
 
   /* ============ FILTER BAR ============ */
   /* Three equal-width controls (search + two dropdowns), each one-third of the
@@ -1311,8 +1314,13 @@ function openModal(key){
     (d.location ? `<button class="link-loc" data-location="${esc(d.location.trim())}">📍 ${esc(d.location)}</button>` : "");
   $("modalTitle").textContent = d.title;
   $("modalStory").textContent = d.story || "";
-  $("modalBtnWrap").innerHTML = (d.buttonLabel && d.buttonUrl)
-    ? `<a class="item-btn" href="${esc(d.buttonUrl)}" target="_blank" rel="noopener">${esc(d.buttonLabel)} →</a>` : "";
+  // For a video item: a quiet, last-resort text link to the source (the inline
+  // player or the clapboard card's button is the primary path). For non-video
+  // items: keep any custom row button as-is.
+  $("modalBtnWrap").innerHTML = d.video
+    ? `<a class="watch-link" href="${esc(d.video)}" target="_blank" rel="noopener">Watch the video</a>`
+    : ((d.buttonLabel && d.buttonUrl)
+        ? `<a class="item-btn" href="${esc(d.buttonUrl)}" target="_blank" rel="noopener">${esc(d.buttonLabel)} →</a>` : "");
   const ppl = peopleList(d);
   $("modalCredit").innerHTML = ppl.length
     ? `<span class="credit-label">People:</span> <div class="people-row">${ppl.map(p=>`<button class="person-pill" data-person="${esc(p)}">${esc(p)}</button>`).join("")}</div>`

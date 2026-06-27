@@ -175,5 +175,11 @@ Mark confirmed he's open to an Apps Script change when it improves functionality
 - **Verified (preview, served from this repo):** YouTube/Drive embed inline; Vimeo shows the card then upgrades to inline only when embeddable (seeded the proxy answer to test both); private hash preserved (`?h=…`); not-embeddable stays the card; token guard holds; no console errors. Also confirmed against live Vimeo that an embeddable video's oEmbed returns 200 + `<iframe>` + thumbnail (so the server check is reliable).
 - **⭐ Owner action — needs the SAME redeploy as follow-up 2** (the `embeddable` field rides in the same `vimeoThumb` change). The front-end is live and **degrades safely**: the live script still has the *old* `vimeoThumb` (no `embeddable` field), so **until you redeploy, ALL Vimeo videos show the button card** (no inline Vimeo, but also no error). **After the redeploy:** embeddable Vimeo plays inline; embedding-disabled Vimeo shows the card. YouTube/Drive are unaffected either way.
 
+### 2026-06-27 (follow-up 4) — quiet the redundant bottom "Watch the video" button (index.html only)
+Cosmetic; **no Apps Script, no redeploy.** The pop-out had a prominent teal "Watch the video →" button below the story text (from `modalBtnWrap`, fed by the row's `Button Label`/`Button URL`, which `addStoryFromPublic` sets to the video) — redundant with the inline player / clapboard card's own yellow button, and competing for attention.
+- For a **video item** (`d.video` set), `modalBtnWrap` now renders a **subtle underlined blue text link "Watch the video"** (`.watch-link`, no arrow, no button fill) pointing at the source video (new tab) — a quiet last-resort, always present, that doesn't pull the eye from the inline player or the card's button.
+- **Non-video items keep their custom row button** unchanged (the `.item-btn` path still applies when there's a `Button Label`/`Button URL` and no video) — e.g. a flyer linking to a PDF.
+- Verified in the preview: video item → subtle blue link (clapboard `.vbc-btn` still present above); non-video custom button still renders as the teal `.item-btn`; no console errors.
+
 ## Earlier next task (now done) — build `share.html`
 Built as Stage 1 above. Stage 2 (auto-rename) remains.
