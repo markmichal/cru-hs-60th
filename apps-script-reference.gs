@@ -31,11 +31,16 @@
  *   that one URL — no other change needed.
  *
  *   >>> CHANGED 2026-06-27 — added the `vimeoThumb` action: a server-side Vimeo
- *       oEmbed proxy so share.html can show thumbnails for UNLISTED/PRIVATE
- *       Vimeo videos (the browser can't reach oEmbed itself, and Vimeo's public
- *       API only covers public videos). REQUIRES a NEW web-app version to go
- *       live; until then the site auto-falls-back to the public-only path, so
- *       nothing breaks. No new Script Properties needed.
+ *       oEmbed proxy. Two uses: (a) share.html shows thumbnails for UNLISTED/
+ *       PRIVATE Vimeo videos, and (b) the index.html story pop-out checks each
+ *       Vimeo video's `embeddable` flag so it can show a clean "Watch this
+ *       video" card instead of Vimeo's black "privacy settings" error box when
+ *       embedding is disabled. (The browser can't reach oEmbed itself, and
+ *       Vimeo's public API reports neither thumbnails for private videos nor
+ *       embeddability.) REQUIRES a NEW web-app version to go live; until then
+ *       the site degrades gracefully (share.html falls back to the public-only
+ *       thumbnail path; the pop-out shows the button card for Vimeo). No new
+ *       Script Properties needed.
  *
  *   >>> CHANGED 2026-06-25 — added convertStoryTypeToPhoto(): a one-time MANUAL
  *       cleanup that changes every "Story"-typed row on the Stories tab to
@@ -605,25 +610,36 @@ function handleAddStoryFromPublic(body){
   return json({ ok:true, startRow: startRow });
 }
 
-/* ---- 7f) vimeoThumb: server-side Vimeo oEmbed → thumbnail URL ----
+/* ---- 7f) vimeoThumb: server-side Vimeo oEmbed → thumbnail URL + embeddability ----
  * The browser can't reach Vimeo's oEmbed (CORS-blocked for fetch, no JSONP),
  * and Vimeo's public v2 API only covers PUBLIC videos. This proxy fetches
  * oEmbed server-side (no CORS there) for ANY Vimeo URL — including unlisted/
- * private links that carry a privacy hash (vimeo.com/ID/HASH) — and returns
- * just the thumbnail_url. Public, no PIN; only accepts vimeo.com URLs. The
- * site (share.html) calls this first and falls back to the v2 JSONP API. */
+ * private links that carry a privacy hash (vimeo.com/ID/HASH).
+ * Returns { ok, thumb, embeddable }:
+ *   - thumb       the oEmbed thumbnail_url ("" if oEmbed refused the video)
+ *   - embeddable  true only when oEmbed returns an <iframe> (i.e. the owner
+ *                 permits embedding). When embedding is DISABLED, oEmbed 403s,
+ *                 so we report embeddable:false and the site shows its own
+ *                 "Watch this video" card instead of Vimeo's error box.
+ * Public, no PIN; only accepts vimeo.com URLs. Two callers:
+ *   - share.html (input thumbnails): uses `thumb`, falls back to v2 JSONP.
+ *   - index.html (story pop-out): uses `embeddable` to decide embed vs card. */
 function handleVimeoThumb(body){
   try{
     var url = String(body.url || "").trim();
     if(!/^https?:\/\/(player\.)?vimeo\.com\//i.test(url)) return json({ ok:false, error:"Not a Vimeo URL." });
     // width nudges Vimeo toward a larger thumbnail; muteHttpExceptions so a 403/404
-    // (e.g. a truly private video) returns cleanly instead of throwing.
+    // (embedding disabled, or a truly private video) returns cleanly, not a throw.
     var api = "https://vimeo.com/api/oembed.json?width=640&url=" + encodeURIComponent(url);
     var resp = UrlFetchApp.fetch(api, { muteHttpExceptions: true });
-    if(resp.getResponseCode() !== 200) return json({ ok:false, error:"No thumbnail." });
+    if(resp.getResponseCode() !== 200){
+      // oEmbed refuses videos whose owner disabled embedding (and private ones).
+      return json({ ok:true, embeddable:false, thumb:"" });
+    }
     var data = JSON.parse(resp.getContentText());
-    if(data && data.thumbnail_url) return json({ ok:true, thumb: data.thumbnail_url });
-    return json({ ok:false, error:"No thumbnail." });
+    var thumb = (data && data.thumbnail_url) || "";
+    var embeddable = !!(data && data.html && /<iframe/i.test(data.html));
+    return json({ ok:true, embeddable: embeddable, thumb: thumb });
   }catch(err){ return json({ ok:false, error: publicErr(err) }); }
 }
 

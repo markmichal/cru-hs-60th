@@ -315,6 +315,13 @@
   .modal img.m-photo { width: 100%; max-height: 340px; object-fit: cover; display: block; }
   .m-video { position: relative; width: 100%; padding-top: 56.25%; background: #000; }
   .m-video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  /* Warm "watch at the source" card — shown instead of a third-party embed
+     error when a video can't be embedded (e.g. Vimeo embedding disabled). */
+  .video-card { background: var(--soft); border: 1px solid var(--gray); border-radius: 10px; padding: 18px; text-align: center; }
+  .video-card .vbc-thumb { width: 100%; max-height: 320px; object-fit: cover; border-radius: 8px; display: block; margin: 0 auto 14px; }
+  .video-card .vbc-icon { display: flex; align-items: center; justify-content: center; width: 100%; height: 180px; border-radius: 8px; background: var(--turquoise); color: #fff; font-size: 3.4rem; margin: 0 auto 14px; }
+  .vbc-btn { display: inline-block; background: var(--yellow); color: var(--black); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1rem; padding: 13px 26px; border-radius: 6px; text-decoration: none; }
+  .vbc-btn:hover { background: var(--lemon); }
   .modal .m-body { padding: 22px 24px 26px; }
   .modal h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 1.4rem; margin: 8px 0 10px; letter-spacing: -0.02em; color: var(--black); }
   .modal .m-story { color: var(--graphite); line-height: 1.65; font-size: 0.94rem; white-space: pre-line; }
@@ -682,6 +689,7 @@ function videoInfo(url){
   const s = String(url).trim();
   const yt = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
   if(yt) return {
+    kind: "youtube",
     embed: `https://www.youtube.com/embed/${yt[1]}`,
     thumb: `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`
   };
@@ -691,12 +699,14 @@ function videoInfo(url){
   if(vm){
     const h = s.match(/\/\d{6,}\/([0-9a-z]+)/i) || s.match(/[?&]h=([0-9a-z]+)/i);
     return {
+      kind: "vimeo",
       embed: `https://player.vimeo.com/video/${vm[1]}` + (h ? `?h=${h[1]}` : ""),
       thumb: ""        // Vimeo thumbnails need an API call; the card uses the row's photo instead
     };
   }
   const dr = s.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
   if(dr) return {
+    kind: "drive",
     embed: `https://drive.google.com/file/d/${dr[1]}/preview`,
     thumb: `https://drive.google.com/thumbnail?id=${dr[1]}&sz=w1200`
   };
@@ -1206,6 +1216,7 @@ async function geocodeAll(){
 
 /* ============ DETAIL MODAL ============ */
 function closeModal(){
+  currentVideoToken++;                    // invalidate any in-flight embed check
   $("modalOverlay").classList.remove("open");
   $("modalVideo").innerHTML = "";        // stop playback / free the player
   $("modalVideo").style.display = "none";
@@ -1223,24 +1234,75 @@ function goToYear(year){
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+/* The warm "watch at the source" card — used instead of any third-party embed
+   error box. Poster = the row's photo if present, else a clapboard icon. */
+function videoButtonCard(d){
+  const poster = d.photo ? driveImg(d.photo) : "";
+  const vis = poster
+    ? `<img class="vbc-thumb" src="${esc(poster)}" alt="${esc(d.title)}" onerror="this.outerHTML='<div class=&quot;vbc-icon&quot;>🎬</div>'">`
+    : `<div class="vbc-icon">🎬</div>`;
+  return `<div class="video-card">${vis}<a class="vbc-btn" href="${esc(d.video)}" target="_blank" rel="noopener">▶ Watch this video</a></div>`;
+}
+
+// Ask the server-side proxy whether a Vimeo video permits embedding. Returns
+// true/false, or null if we can't tell (proxy not deployed yet / failed) — in
+// which case the caller keeps the safe button card. Results are cached per URL.
+const vimeoEmbedCache = {};
+async function checkVimeoEmbeddable(url){
+  if(url in vimeoEmbedCache) return vimeoEmbedCache[url];
+  if(!CONFIG.SCRIPT_URL) return null;
+  try{
+    const res = await fetch(CONFIG.SCRIPT_URL, {
+      method:"POST", headers:{ "Content-Type":"text/plain;charset=utf-8" },
+      body: JSON.stringify({ action:"vimeoThumb", url })
+    });
+    const out = await res.json();
+    if(out && out.ok && typeof out.embeddable === "boolean"){
+      vimeoEmbedCache[url] = out.embeddable;       // cache only definitive answers
+      return out.embeddable;
+    }
+  }catch(e){ /* fall through to unknown */ }
+  return null;
+}
+
+// Render the modal's media area. Returns true if the item HAS a video (so the
+// caller hides the separate photo). Never shows a third-party error: Vimeo is
+// pre-checked (button card unless we KNOW it embeds), YouTube/Drive embed with
+// a hard-failure safety net that swaps to the button card.
+let currentVideoToken = 0;
+function renderModalVideo(d){
+  const mv = $("modalVideo");
+  if(!d.video){ mv.innerHTML = ""; mv.style.display = "none"; return false; }
+  const vid = videoInfo(d.video);
+  const token = ++currentVideoToken;     // guards async swaps against re-opens/close
+  mv.style.display = "block";
+
+  const showButton = () => { mv.innerHTML = videoButtonCard(d); };
+  const showEmbed = () => {
+    mv.innerHTML = `<div class="m-video"><iframe src="${esc(vid.embed)}" allow="encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+    const ifr = mv.querySelector("iframe");
+    if(ifr) ifr.addEventListener("error", () => { if(token === currentVideoToken) showButton(); });
+  };
+
+  if(!vid){ showButton(); return true; }               // unrecognized link → button card
+  if(vid.kind === "vimeo"){
+    showButton();                                        // safe default; never an error box
+    checkVimeoEmbeddable(d.video).then(ok => {           // upgrade to inline only if it embeds
+      if(token === currentVideoToken && ok === true) showEmbed();
+    });
+    return true;
+  }
+  showEmbed();                                           // YouTube / Drive embed directly
+  return true;
+}
+
 function openModal(key){
   const d = DATA[key];
   if(!d) return;
   const img = $("modalImg");
-  const mv = $("modalVideo");
-  const vid = videoInfo(d.video);
-  if(vid){
-    // Embedded player (16:9). Source is a link only — nothing is hosted here.
-    mv.innerHTML = `<div class="m-video"><iframe src="${esc(vid.embed)}" allow="encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
-    mv.style.display = "block";
-    img.style.display = "none";
-  } else if(d.video){
-    // A video link we can't embed — give a clickable link rather than breaking.
-    mv.innerHTML = `<a class="item-btn" href="${esc(d.video)}" target="_blank" rel="noopener">▶ Watch the video →</a>`;
-    mv.style.display = "block";
-    if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
+  if(renderModalVideo(d)){
+    img.style.display = "none";                          // the video area owns the visual
   } else {
-    mv.innerHTML = ""; mv.style.display = "none";
     if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
   }
   $("modalMeta").innerHTML =
