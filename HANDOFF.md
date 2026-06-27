@@ -1,15 +1,16 @@
 # Handoff — Cru HS 60th Anniversary Site
 
-> **WHERE WE ARE (2026-06-25).** Front-end batch + identity shift landed in `index.html`, plus a one-time data-cleanup utility in `apps-script-reference.gs`. The site is shifting from a one-time 60th-anniversary site to a permanent **"Cru High School History"** living archive. A later same-day pass added three more pure-front-end tweaks (share.html scroll fix, filter-bar layout, bigger logo) that need **no redeploy** — see "2026-06-25 (later) — three front-end tweaks". See "2026-06-25 — front-end batch + identity shift" for the identity work. **Owner actions remaining (from the identity batch — the later tweaks add none):**
+> **WHERE WE ARE (2026-06-25).** Front-end batch + identity shift landed in `index.html`, plus a one-time data-cleanup utility in `apps-script-reference.gs`. The site is shifting from a one-time 60th-anniversary site to a permanent **"Cru High School Legacy"** living archive (renamed from "Cru High School History" on 2026-06-27 — see that section below). A later same-day pass added three more pure-front-end tweaks (share.html scroll fix, filter-bar layout, bigger logo) that need **no redeploy** — see "2026-06-25 (later) — three front-end tweaks". See "2026-06-25 — front-end batch + identity shift" for the identity work. **Owner actions remaining (from the identity batch — the later tweaks add none):**
 > 1. **Paste the updated `apps-script-reference.gs` into the Sheet's Apps Script editor** (Extensions → Apps Script → select all → paste → Save), then **run `convertStoryTypeToPhoto()` ONCE** — pick it from the function dropdown and Run, or use the Sheet's **"Cru 60th" menu → "Convert Story type → Photo"**. This rewrites any `Type = "Story"` rows on the Stories tab to `Photo`. (This utility is editor/menu-only — it does **not** by itself need a web-app redeploy.)
 > 2. **Redeploy a NEW web-app version** only if the **Stage 2 auto-rename** (the 2026-06-24 change) isn't live yet — pasting the file above also carries it. If you already redeployed Stage 2, no redeploy is needed for this batch.
-> 3. **Eyeball the live site** after the Pages rebuild (~1–2 min): the logo sits cleanly in the yellow badge, the header reads "Cru High School History" with the new tagline, the nav reads Timeline · Stories · People · Locations, and the gallery's decade buttons filter correctly alongside type/search/location/person.
+> 3. **Eyeball the live site** after the Pages rebuild (~1–2 min): the logo sits cleanly in the yellow badge, the header reads "Cru High School Legacy" (see the 2026-06-27 rename), the nav reads Timeline · Stories · People · Locations, and the gallery's decade buttons filter correctly alongside type/search/location/person.
 >
 > **Note on editable text:** the header title, subtitle, and nav labels are still editable via the hidden editor → Site Settings tab. The HTML defaults were updated, but **if a saved Site Settings value exists for `headerTitle` / `headerSubtitle` / `navGallery`, that saved value wins** and the old text may still show — clear/update it in the hidden editor (PIN 6060) if so.
 >
 > **Latest (2026-06-27):** the share.html media input was overhauled (auto-detect pasted links, either/or one-media-per-story), **all videos now embed in-site including Vimeo**, follow-ups fixed **Vimeo input thumbnails** + a **verify-step media preview**, added a server-side **`vimeoThumb` proxy** (unlisted-Vimeo thumbnails), and made the story pop-out **never show a third-party embed error** — a Vimeo with embedding disabled now shows a warm "▶ Watch this video" card instead of Vimeo's black privacy-error box. The front-end is live on the Pages rebuild and **degrades gracefully**. See the four "2026-06-27" sections below. **One owner action covers it all:**
 > - **Redeploy `apps-script-reference.gs`** (the `vimeoThumb` proxy + its new `embeddable` flag) to switch on (a) unlisted-Vimeo input thumbnails and (b) inline playback for embeddable Vimeo in the pop-out. It bundles with the already-pending redeploy below — no extra trip. **Until you redeploy, all Vimeo videos in the pop-out show the "Watch this video" card** (never an error); YouTube/Drive are unaffected.
 >
+> **Rename (2026-06-27): "High School History" → "High School Legacy" + new domain.** Code changes are done (CNAME, og/twitter/title meta, header `<h1>` default). **No Apps Script change, no redeploy.** Two owner actions OUTSIDE the repo: (1) **DNS** — point `highschoollegacy.crutastic.com` at GitHub Pages and set it as the custom domain in repo Settings → Pages (the old `highschoolhistory` host stops resolving once DNS moves). (2) **Hidden editor (PIN 6060)** — if a saved `headerTitle` exists in Site Settings it OVERRIDES the HTML default, so update it to "Cru High School Legacy" there or the header may still read "History". See "2026-06-27 — rename to High School Legacy".
 > Prior state (still true): the owner did the `Form Responses 2` → `Stories` tab rename and the Stage 1.2 / 1.3 / structural-pass redeploys, so those server changes are live.
 
 ## Status as of 2026-06-18
@@ -33,7 +34,7 @@ There are two working versions of the site (same Google Sheet as the data source
 - **Clickable everywhere**: people, locations, and years in cards and the detail modal all navigate to related things (person profile / location page / year-filtered gallery).
 - **Gallery search includes the year**; person profile's summary date/location "trail" removed (service journey is the single source of truth).
 - **Social share preview**: Open Graph + Twitter Card meta tags.
-- **Custom domain**: `CNAME` → `highschoolhistory.crutastic.com` (the `markmichal.github.io/cru-hs-60th/` URL still works too).
+- **Custom domain**: `CNAME` → `highschoollegacy.crutastic.com` (renamed 2026-06-27 from `highschoolhistory.crutastic.com`; the `markmichal.github.io/cru-hs-60th/` URL still works too).
 
 ### GitHub site — owner actions still needed
 1. Redeploy the live Apps Script from `apps-script-reference.gs` (Manage deployments → New version) so the History intake + photo-renaming actions are live.
@@ -41,7 +42,7 @@ There are two working versions of the site (same Google Sheet as the data source
 3. Smoke-test `intake.html` and `history-intake.html`.
 
 ### GitHub site URLs
-- Site: https://highschoolhistory.crutastic.com (also https://markmichal.github.io/cru-hs-60th/)
+- Site: https://highschoollegacy.crutastic.com (also https://markmichal.github.io/cru-hs-60th/)
 - Staff intake: `/intake.html` · History intake: `/history-intake.html`
 
 ---
@@ -99,7 +100,7 @@ A **public, photo-first AI story submission page** — no PIN. Single static pag
 ### ⭐ Owner checklist for the structural pass (do in this order)
 1. **Rename the Sheet tab** from **"Form Responses 2"** to **"Stories"** (double-click the tab name at the bottom of the spreadsheet). Exact spelling, no trailing spaces.
 2. **Paste the updated `apps-script-reference.gs`** into Extensions → Apps Script (select all, delete, paste, Save), then **Deploy → Manage deployments → New version → Deploy** (same web app URL).
-3. **Confirm the gallery still loads** at https://highschoolhistory.crutastic.com after the rename (the "Live from Google Sheets — N approved items" status should still appear and show your story items).
+3. **Confirm the gallery still loads** at https://highschoollegacy.crutastic.com after the rename (the "Live from Google Sheets — N approved items" status should still appear and show your story items).
 4. **Submit one test story** via `/share.html` and confirm the new row appears **at the top (row 2)** of the Stories tab, with **Approved = FALSE** (red), and the name/timestamp in **Your name** / **Timestamp**.
 5. (Optional) Test the staff/history intakes and the public "Map my journey" the same way — new rows should also land at the top with Approved = FALSE.
 6. Reorder columns however you like — writes will keep landing in the right columns by header name.
@@ -180,6 +181,25 @@ Cosmetic; **no Apps Script, no redeploy.** The pop-out had a prominent teal "Wat
 - For a **video item** (`d.video` set), `modalBtnWrap` now renders a **subtle underlined blue text link "Watch the video"** (`.watch-link`, no arrow, no button fill) pointing at the source video (new tab) — a quiet last-resort, always present, that doesn't pull the eye from the inline player or the card's button.
 - **Non-video items keep their custom row button** unchanged (the `.item-btn` path still applies when there's a `Button Label`/`Button URL` and no video) — e.g. a flyer linking to a PDF.
 - Verified in the preview: video item → subtle blue link (clapboard `.vbc-btn` still present above); non-video custom button still renders as the teal `.item-btn`; no console errors.
+
+## 2026-06-27 — rename to "High School Legacy" + domain change
+Renamed the site from **High School History → High School Legacy** and the domain from **highschoolhistory.crutastic.com → highschoollegacy.crutastic.com**. **index.html + CNAME only; no Apps Script change, no redeploy.**
+- **Domain (every hardcoded occurrence updated):**
+  - `CNAME` → `highschoollegacy.crutastic.com`
+  - `index.html` `og:url` meta → `https://highschoollegacy.crutastic.com`
+  - HANDOFF.md doc references (the "Custom domain" line, the Site URL line, and the structural-pass checklist step 3) → new domain.
+  - (Not found anywhere else — share.html / intake.html / history-intake.html / apps-script-reference.gs do **not** hardcode the domain.)
+- **Displayed NAME "Cru High School History" → "Cru High School Legacy" (in `index.html`):**
+  - `<title>` — **HTML default** (browser tab). ✅ updated.
+  - `og:title` + `twitter:title` — **HTML defaults** (social share cards). ✅ updated.
+  - Header `<h1 data-set="headerTitle">` — **HTML default, but Site-Settings-driven.** ✅ updated in HTML, **BUT if a saved `headerTitle` exists in the Site Settings tab it WINS** → owner must update it in the hidden editor (PIN 6060) or the header may still read "History".
+  - Subtitle / nav labels were left alone — they contain no "History" (subtitle is "How God has used Cru in the lives of teenagers").
+  - og/twitter **descriptions** ("…Cru's high school ministry…") left as-is — descriptive prose, not the site name.
+- **Out of scope (intentionally NOT changed):** the `share.html` / `intake.html` / `history-intake.html` "Cru High School · 60th Anniversary" headings and the history-intake tool's "Ministry History Intake" name — those are different strings (60th-anniversary branding / a tool about ministry *history content*), not the site name. Flag if you want those renamed too.
+- **⭐ Owner actions (both outside the repo — code is done):**
+  1. **DNS / Pages:** create/point `highschoollegacy.crutastic.com` at GitHub Pages and set it as the custom domain (repo Settings → Pages). The CNAME file now serves that host; the old `highschoolhistory` domain stops working once DNS is moved.
+  2. **Hidden editor (PIN 6060):** if `headerTitle` was ever saved in Site Settings, change it to **"Cru High School Legacy"** (same for any other saved name text). HTML-default spots (title/og/twitter) need nothing — they're already updated.
+- **No redeploy:** the Apps Script is untouched.
 
 ## Earlier next task (now done) — build `share.html`
 Built as Stage 1 above. Stage 2 (auto-rename) remains.
