@@ -100,6 +100,13 @@
   .confirmed{text-align:center; padding:6px 4px;}
   .confirmed .conf-thumb{max-width:100%; max-height:220px; border-radius:10px; display:block; margin:0 auto 12px; box-shadow:0 1px 6px rgba(0,0,0,.14);}
   .confirmed .conf-ok{font-family:'Sora',sans-serif; font-weight:800; font-size:1.15rem; color:#1e8e3e; margin-bottom:14px;}
+  /* Fallback when a video has no thumbnail (e.g. a private Vimeo) — never blank. */
+  .media-icon{display:flex; align-items:center; justify-content:center; width:100%; max-width:240px; height:130px; margin:0 auto 12px;
+    border-radius:10px; background:#0d2b34; color:#fff; font-size:3rem; box-shadow:0 1px 6px rgba(0,0,0,.14);}
+  /* Media preview on the "Does this look right?" verify step */
+  .pv-media{margin:0 0 20px; text-align:center;}
+  .pv-media img{max-width:100%; max-height:240px; border-radius:10px; display:block; margin:0 auto; box-shadow:0 1px 6px rgba(0,0,0,.14);}
+  .pv-media .pv-media-cap{font-family:'Inter',sans-serif; font-weight:700; font-size:.95rem; color:var(--graphite); margin-top:8px;}
   .confirmed .media-remove{min-height:auto; padding:12px 22px;}
 
   /* ---------- Story + mic ---------- */
@@ -315,6 +322,7 @@
   <div class="card" id="storyPreviewCard" style="display:none">
     <h2>Does this look right?</h2>
     <p class="lead">We tidied your words into a short record. Change anything that's off, then share it. Nothing goes public until our team reviews it.</p>
+    <div class="pv-media" id="pvMedia" style="display:none"></div>
     <div class="pv-grid">
       <div class="field"><label for="pvTitle">Title</label><input type="text" id="pvTitle"></div>
       <div class="field">
@@ -446,22 +454,40 @@ function recognizeMedia(raw){
   const yt = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/i);
   if(yt) return { kind:"youtube", url:s, isVideo:true, thumb:`https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg` };
   const vm = s.match(/(?:player\.vimeo\.com\/video\/|vimeo\.com\/(?:channels\/[\w-]+\/|groups\/[\w-]+\/videos\/|video\/)?)(\d{6,})/i);
-  if(vm) return { kind:"vimeo", url:s, isVideo:true, thumb:"" };
+  if(vm) return { kind:"vimeo", url:s, isVideo:true, thumb:"", id:vm[1] };
   const dr = s.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
   if(dr) return { kind:"drive", url:s, isVideo:false, thumb:`https://drive.google.com/thumbnail?id=${dr[1]}&sz=w400` };
   return null;
 }
-// Vimeo thumbnails need an oembed call; fill it in when it arrives (best effort).
-async function fetchVimeoThumb(url){
-  try{
-    const r = await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`);
-    if(!r.ok) return;
-    const j = await r.json();
-    if(j && j.thumbnail_url && storyMedia && storyMedia.source === "link" && storyMedia.url === url){
-      storyMedia.thumb = j.thumbnail_url;
+/* Fetch a Vimeo thumbnail, async + best-effort. NOTE: Vimeo's oEmbed endpoint
+   (vimeo.com/api/oembed.json) is CORS-blocked for browser fetch AND doesn't
+   support a JSONP callback, so it can't be used client-side. Vimeo's v2 "simple
+   API" DOES support JSONP and returns thumbnail_large — that's what we use here.
+   It only covers PUBLIC videos; private/unlisted ones return nothing, in which
+   case storyMedia.thumb stays empty and the UI shows the clean video-icon
+   fallback (never blank). No server/Apps Script change needed. */
+function fetchVimeoThumb(id, url){
+  if(!id) return;
+  const cb = "vmcb_" + id + "_" + Math.random().toString(36).slice(2);
+  const script = document.createElement("script");
+  let settled = false;
+  const cleanup = () => { try{ delete window[cb]; }catch(e){ window[cb] = undefined; } if(script.parentNode) script.parentNode.removeChild(script); };
+  window[cb] = (data) => {
+    settled = true;
+    const v = Array.isArray(data) ? data[0] : data;
+    const thumb = v && (v.thumbnail_large || v.thumbnail_medium || v.thumbnail_small);
+    // only apply if this link is still the chosen media (user may have changed it)
+    if(thumb && storyMedia && storyMedia.source === "link" && storyMedia.url === url){
+      storyMedia.thumb = thumb;
       renderMediaState();
+      renderVerifyMedia();
     }
-  }catch(e){ /* no thumbnail — the generic "✓ Link added!" confirmation stays */ }
+    cleanup();
+  };
+  script.src = `https://vimeo.com/api/v2/video/${id}.json?callback=${cb}`;
+  script.onerror = () => { if(!settled) cleanup(); };   // leave thumb empty → icon fallback stays
+  document.head.appendChild(script);
+  setTimeout(() => { if(!settled) cleanup(); }, 6000);   // don't leak on a slow/no response
 }
 function driveImgUrl(url){
   if(!url) return "";
@@ -654,6 +680,30 @@ $("submitServiceBtn").addEventListener("click", async () => {
 ===================================================================== */
 let storyMedia = null;
 
+// The thumbnail URL to try for a given media (uploaded photo → its Drive thumb;
+// a link → whatever thumb we have, may be empty for a not-yet/never-fetched video).
+function mediaThumbSrc(m){
+  if(!m) return "";
+  if(m.source === "upload") return m.isVideo ? "" : driveImgUrl(m.url);
+  return m.thumb || "";
+}
+// A friendly "✓ ... added!" label for the current media.
+function mediaLabel(m){
+  if(!m) return "";
+  if(!m.isVideo) return "✓ Photo added!";
+  return m.kind === "vimeo" ? "✓ Vimeo video added!" : "✓ Video added!";
+}
+// Visual block: the thumbnail if we have one (with an onerror swap to the icon),
+// else a clean video icon — never blank. `cls` lets callers size the image.
+function mediaVisualHTML(m, cls){
+  const thumb = mediaThumbSrc(m);
+  if(thumb){
+    return `<img class="${cls}" src="${attr(thumb)}" alt="Your media"
+      onerror="this.outerHTML='<div class=&quot;media-icon&quot;>🎬</div>'">`;
+  }
+  return `<div class="media-icon">🎬</div>`;
+}
+
 // Paint the media area for the current state: nothing chosen, a photo
 // uploaded, or a link added. The unused path dims out with a note (either/or).
 function renderMediaState(){
@@ -663,26 +713,34 @@ function renderMediaState(){
   $("uploadNote").style.display = "none"; $("linkNote").style.display = "none";
   $("uploadBtn").style.display = ""; $("uploadConfirmed").style.display = "none"; $("uploadConfirmed").innerHTML = "";
   $("linkEntry").style.display = "";  $("linkConfirmed").style.display = "none"; $("linkConfirmed").innerHTML = "";
+  renderVerifyMedia();
   if(!storyMedia) return;
 
+  const visual = mediaVisualHTML(storyMedia, "conf-thumb");
+  const label  = `<div class="conf-ok">${mediaLabel(storyMedia)}</div>`;
   if(storyMedia.source === "upload"){
     $("uploadBtn").style.display = "none";
     const c = $("uploadConfirmed"); c.style.display = "block";
-    c.innerHTML = (storyMedia.isVideo
-        ? `<div class="conf-ok">✓ Video added!</div>`
-        : `<img class="conf-thumb" src="${attr(driveImgUrl(storyMedia.url))}" alt="Your photo"><div class="conf-ok">✓ Photo added!</div>`)
-      + `<button class="btn ghost media-remove" id="mediaRemoveBtn">Remove this</button>`;
+    c.innerHTML = visual + label + `<button class="btn ghost media-remove" id="mediaRemoveBtn">Remove this</button>`;
     lk.classList.add("disabled"); $("linkNote").style.display = "block";   // "Remove your photo to paste a link instead."
   } else {
     $("linkEntry").style.display = "none";
     const c = $("linkConfirmed"); c.style.display = "block";
-    const thumb = storyMedia.thumb
-      ? `<img class="conf-thumb" src="${attr(storyMedia.thumb)}" alt="Video preview" onerror="this.style.display='none'">` : "";
-    c.innerHTML = `${thumb}<div class="conf-ok">✓ Link added!</div>
-      <button class="btn ghost media-remove" id="mediaRemoveBtn">Change link</button>`;
+    c.innerHTML = visual + label + `<button class="btn ghost media-remove" id="mediaRemoveBtn">Change link</button>`;
     up.classList.add("disabled"); $("uploadNote").style.display = "block";  // "Remove the link to add a photo instead."
   }
   $("mediaRemoveBtn").addEventListener("click", clearMedia);
+}
+
+// Mirror the attached media at the top of the "Does this look right?" step, so
+// they can see their photo/video is coming along with the parsed story.
+function renderVerifyMedia(){
+  const box = $("pvMedia");
+  if(!box) return;
+  if(!storyMedia){ box.style.display = "none"; box.innerHTML = ""; return; }
+  box.innerHTML = mediaVisualHTML(storyMedia, "")
+    + `<div class="pv-media-cap">${mediaLabel(storyMedia)}</div>`;
+  box.style.display = "block";
 }
 
 function clearMedia(){
@@ -701,9 +759,9 @@ function tryCaptureLink(showError){
   const m = recognizeMedia(raw);
   if(m){
     hideMsg("mediaMsg");
-    storyMedia = { url:m.url, isVideo:m.isVideo, source:"link", thumb:m.thumb, kind:m.kind };
+    storyMedia = { url:m.url, isVideo:m.isVideo, source:"link", thumb:m.thumb, kind:m.kind, id:m.id };
     renderMediaState();
-    if(m.kind === "vimeo") fetchVimeoThumb(m.url);
+    if(m.kind === "vimeo") fetchVimeoThumb(m.id, m.url);
   } else if(showError){
     showMsg("mediaMsg","Hmm, that doesn't look like a video link — try a YouTube, Vimeo, or Drive link.");
   }
@@ -807,6 +865,7 @@ $("shareBtn").addEventListener("click", async () => {
     $("pvType").value = ["Photo","Flyer","Video","Event"].includes(f.type) ? f.type : "Photo";
     $("pvStory").value = f.story || story;
     resetEncourage();
+    renderVerifyMedia();                       // show their photo/video atop the preview
     $("finalSubmitBtn").textContent = "Share my story";
     $("storyPreviewCard").style.display = "block";
     autoGrow($("pvStory"));
