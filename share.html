@@ -459,14 +459,36 @@ function recognizeMedia(raw){
   if(dr) return { kind:"drive", url:s, isVideo:false, thumb:`https://drive.google.com/thumbnail?id=${dr[1]}&sz=w400` };
   return null;
 }
-/* Fetch a Vimeo thumbnail, async + best-effort. NOTE: Vimeo's oEmbed endpoint
-   (vimeo.com/api/oembed.json) is CORS-blocked for browser fetch AND doesn't
-   support a JSONP callback, so it can't be used client-side. Vimeo's v2 "simple
-   API" DOES support JSONP and returns thumbnail_large — that's what we use here.
-   It only covers PUBLIC videos; private/unlisted ones return nothing, in which
-   case storyMedia.thumb stays empty and the UI shows the clean video-icon
-   fallback (never blank). No server/Apps Script change needed. */
-function fetchVimeoThumb(id, url){
+// Apply a fetched Vimeo thumbnail, but only if that link is still the chosen
+// media (the user may have changed it while we were fetching).
+function applyVimeoThumb(url, thumb){
+  if(thumb && storyMedia && storyMedia.source === "link" && storyMedia.url === url){
+    storyMedia.thumb = thumb;
+    renderMediaState();
+    renderVerifyMedia();
+  }
+}
+
+/* Fetch a Vimeo thumbnail, async + best-effort. Two paths:
+   1) PREFERRED — the server-side `vimeoThumb` Apps Script action calls Vimeo's
+      oEmbed (no CORS server-side) and returns thumbnail_url. This covers
+      PUBLIC *and* unlisted/private links (a vimeo.com/ID/HASH). Requires the
+      Apps Script to be redeployed with that action.
+   2) FALLBACK — Vimeo's v2 "simple API" via JSONP (public videos only). Used if
+      the proxy isn't deployed yet or fails. (Vimeo's oEmbed itself is unusable
+      from the browser: CORS-blocked for fetch and no JSONP callback.)
+   If both come up empty (e.g. an unlisted video before redeploy), storyMedia.thumb
+   stays empty and the UI shows the clean video-icon fallback — never blank. */
+async function fetchVimeoThumb(id, url){
+  try{
+    const out = await postAction({ action:"vimeoThumb", url });
+    if(out && out.ok && out.thumb){ applyVimeoThumb(url, out.thumb); return; }
+  }catch(e){ /* proxy not deployed yet / network — fall through to JSONP */ }
+  jsonpVimeoThumb(id, url);
+}
+
+// Fallback: Vimeo v2 simple API via JSONP (public videos only).
+function jsonpVimeoThumb(id, url){
   if(!id) return;
   const cb = "vmcb_" + id + "_" + Math.random().toString(36).slice(2);
   const script = document.createElement("script");
@@ -475,13 +497,7 @@ function fetchVimeoThumb(id, url){
   window[cb] = (data) => {
     settled = true;
     const v = Array.isArray(data) ? data[0] : data;
-    const thumb = v && (v.thumbnail_large || v.thumbnail_medium || v.thumbnail_small);
-    // only apply if this link is still the chosen media (user may have changed it)
-    if(thumb && storyMedia && storyMedia.source === "link" && storyMedia.url === url){
-      storyMedia.thumb = thumb;
-      renderMediaState();
-      renderVerifyMedia();
-    }
+    applyVimeoThumb(url, v && (v.thumbnail_large || v.thumbnail_medium || v.thumbnail_small));
     cleanup();
   };
   script.src = `https://vimeo.com/api/v2/video/${id}.json?callback=${cb}`;

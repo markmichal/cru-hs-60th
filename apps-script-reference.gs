@@ -18,6 +18,8 @@
  *        parseStoryText      — alumni "Share this story" (AI)
  *        addStoryFromPublic  — insert the story at the top of the Stories tab,
  *                              and auto-rename the uploaded file (Stage 2)
+ *        vimeoThumb          — server-side Vimeo oEmbed → thumbnail URL (so the
+ *                              share page can preview unlisted Vimeo videos too)
  *
  * --------------------------------------------------------------------------
  * PASTE-AND-REDEPLOY (every time you change this file):
@@ -27,6 +29,13 @@
  *      "New version" → Deploy. The web app URL stays the SAME.
  *   The site (index.html, intake.html, history-intake.html, share.html) all use
  *   that one URL — no other change needed.
+ *
+ *   >>> CHANGED 2026-06-27 — added the `vimeoThumb` action: a server-side Vimeo
+ *       oEmbed proxy so share.html can show thumbnails for UNLISTED/PRIVATE
+ *       Vimeo videos (the browser can't reach oEmbed itself, and Vimeo's public
+ *       API only covers public videos). REQUIRES a NEW web-app version to go
+ *       live; until then the site auto-falls-back to the public-only path, so
+ *       nothing breaks. No new Script Properties needed.
  *
  *   >>> CHANGED 2026-06-25 — added convertStoryTypeToPhoto(): a one-time MANUAL
  *       cleanup that changes every "Story"-typed row on the Stories tab to
@@ -164,6 +173,7 @@ function doPost(e){
       case "uploadStoryMedia":    return handleUploadStoryMedia(body);
       case "parseStoryText":      return handleParseStoryText(body);
       case "addStoryFromPublic":  return handleAddStoryFromPublic(body);
+      case "vimeoThumb":          return handleVimeoThumb(body);
       default:                 return json({ ok:false, error:"Unknown action." });
     }
   }catch(err){
@@ -175,7 +185,7 @@ function doPost(e){
 function doGet(){
   return json({ ok:true, service:"cru-hs-60th",
     actions:["saveSettings","parseNotes","addStints","parseHistory","addHistoryEvents",
-             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic"] });
+             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","vimeoThumb"] });
 }
 
 function json(obj){
@@ -593,6 +603,28 @@ function handleAddStoryFromPublic(body){
   try{ renameStoryUpload_(mediaUrl, s.year, title, s.people); }catch(e){}
 
   return json({ ok:true, startRow: startRow });
+}
+
+/* ---- 7f) vimeoThumb: server-side Vimeo oEmbed → thumbnail URL ----
+ * The browser can't reach Vimeo's oEmbed (CORS-blocked for fetch, no JSONP),
+ * and Vimeo's public v2 API only covers PUBLIC videos. This proxy fetches
+ * oEmbed server-side (no CORS there) for ANY Vimeo URL — including unlisted/
+ * private links that carry a privacy hash (vimeo.com/ID/HASH) — and returns
+ * just the thumbnail_url. Public, no PIN; only accepts vimeo.com URLs. The
+ * site (share.html) calls this first and falls back to the v2 JSONP API. */
+function handleVimeoThumb(body){
+  try{
+    var url = String(body.url || "").trim();
+    if(!/^https?:\/\/(player\.)?vimeo\.com\//i.test(url)) return json({ ok:false, error:"Not a Vimeo URL." });
+    // width nudges Vimeo toward a larger thumbnail; muteHttpExceptions so a 403/404
+    // (e.g. a truly private video) returns cleanly instead of throwing.
+    var api = "https://vimeo.com/api/oembed.json?width=640&url=" + encodeURIComponent(url);
+    var resp = UrlFetchApp.fetch(api, { muteHttpExceptions: true });
+    if(resp.getResponseCode() !== 200) return json({ ok:false, error:"No thumbnail." });
+    var data = JSON.parse(resp.getContentText());
+    if(data && data.thumbnail_url) return json({ ok:true, thumb: data.thumbnail_url });
+    return json({ ok:false, error:"No thumbnail." });
+  }catch(err){ return json({ ok:false, error: publicErr(err) }); }
 }
 
 // Friendly, public-safe error text (never leak internals to a public visitor).
