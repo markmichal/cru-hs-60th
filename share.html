@@ -93,10 +93,14 @@
   .link-box .or{font-family:'Sora',sans-serif; font-weight:800; color:var(--graphite); font-size:.9rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;}
   .link-row{display:flex; gap:10px;}
   .link-row input{flex:1;}
-  .media-preview{display:none; margin-top:18px; padding:16px; border:1px solid var(--gray); border-radius:10px; background:var(--soft);}
-  .media-preview img{max-width:100%; max-height:280px; border-radius:8px; display:block; margin:0 auto;}
-  .media-preview .conf{display:flex; align-items:center; gap:10px; font-family:'Sora',sans-serif; font-weight:700; color:var(--turquoise); font-size:1.05rem;}
-  .media-preview .remove{margin-top:12px;}
+  /* Either/or: when one media path is in use, the other dims out (with a note). */
+  #uploadBox.disabled .upload-btn, #linkBox.disabled #linkEntry{ opacity:.35; pointer-events:none; filter:grayscale(.4); }
+  .dim-note{font-family:'Inter',sans-serif; font-weight:700; font-size:.95rem; color:var(--graphite); margin-top:12px; line-height:1.45; text-align:center;}
+  /* Confirmed media state (uploaded photo / added link) */
+  .confirmed{text-align:center; padding:6px 4px;}
+  .confirmed .conf-thumb{max-width:100%; max-height:220px; border-radius:10px; display:block; margin:0 auto 12px; box-shadow:0 1px 6px rgba(0,0,0,.14);}
+  .confirmed .conf-ok{font-family:'Sora',sans-serif; font-weight:800; font-size:1.15rem; color:#1e8e3e; margin-bottom:14px;}
+  .confirmed .media-remove{min-height:auto; padding:12px 22px;}
 
   /* ---------- Story + mic ---------- */
   .story-wrap{position:relative;}
@@ -245,25 +249,27 @@
     <p class="lead">Got an old photo, a camp flyer, or a video clip? Add it here. This is the heart of your story.</p>
 
     <div class="media-grid">
-      <div class="upload-box">
+      <div class="upload-box media-col" id="uploadBox">
         <input type="file" id="fileInput" accept="image/*,video/*" style="display:none">
         <button class="upload-btn" id="uploadBtn">
           <span class="ic">📷</span>
           <span>Add a Photo</span>
           <span class="small">or a flyer or short video clip — tap to choose</span>
         </button>
+        <div class="confirmed" id="uploadConfirmed" style="display:none"></div>
+        <p class="dim-note" id="uploadNote" style="display:none">Remove the link to add a photo instead.</p>
       </div>
-      <div class="link-box">
+      <div class="link-box media-col" id="linkBox">
         <div class="or">or paste a link</div>
-        <div class="link-row">
-          <input type="text" id="linkInput" style="font-size:.9rem" placeholder="Paste a YouTube, Facebook, or Drive link">
-          <button class="btn ghost" id="addLinkBtn" style="padding:14px 18px">Add</button>
+        <div id="linkEntry">
+          <input type="text" id="linkInput" inputmode="url" style="font-size:.95rem" placeholder="Paste a YouTube, Vimeo, or Drive link">
+          <div class="hint">Already online? Just paste the link — we'll grab it automatically.</div>
         </div>
-        <div class="hint">Already online? Paste the link to the photo or video.</div>
+        <div class="confirmed" id="linkConfirmed" style="display:none"></div>
+        <p class="dim-note" id="linkNote" style="display:none">Remove your photo to paste a link instead.</p>
       </div>
     </div>
 
-    <div class="media-preview" id="mediaPreview"></div>
     <div class="msg error" id="mediaMsg"></div>
   </div>
 
@@ -421,15 +427,41 @@ function videoEmbed(url){
   const s = String(url).trim();
   const yt = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
   if(yt) return `https://www.youtube.com/embed/${yt[1]}`;
+  const vm = s.match(/(?:player\.vimeo\.com\/video\/|vimeo\.com\/(?:channels\/[\w-]+\/|groups\/[\w-]+\/videos\/|video\/)?)(\d{6,})/i);
+  if(vm){
+    const h = s.match(/\/\d{6,}\/([0-9a-z]+)/i) || s.match(/[?&]h=([0-9a-z]+)/i);
+    return `https://player.vimeo.com/video/${vm[1]}` + (h ? `?h=${h[1]}` : "");
+  }
   const dr = s.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
   if(dr) return `https://drive.google.com/file/d/${dr[1]}/preview`;
   return null;
 }
-// Best-effort: is a pasted LINK a video? (uploads are detected from the file type)
-function looksLikeVideo(url){
-  const s = String(url||"").toLowerCase();
-  if(/youtube\.com|youtu\.be|vimeo\.com|facebook\.com\/.*\/videos|fb\.watch|\.mp4|\.mov|\.webm/.test(s)) return true;
-  return false;
+/* Recognize a pasted media LINK (YouTube, Vimeo, or Google Drive) and return
+   { kind, url, isVideo, thumb } — or null if it isn't a media link we support.
+   YouTube has a synchronous thumbnail; Drive uses its thumbnail endpoint (with
+   an onerror fallback); Vimeo's thumbnail is fetched async (see fetchVimeoThumb). */
+function recognizeMedia(raw){
+  const s = String(raw || "").trim();
+  if(!s) return null;
+  const yt = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/i);
+  if(yt) return { kind:"youtube", url:s, isVideo:true, thumb:`https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg` };
+  const vm = s.match(/(?:player\.vimeo\.com\/video\/|vimeo\.com\/(?:channels\/[\w-]+\/|groups\/[\w-]+\/videos\/|video\/)?)(\d{6,})/i);
+  if(vm) return { kind:"vimeo", url:s, isVideo:true, thumb:"" };
+  const dr = s.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  if(dr) return { kind:"drive", url:s, isVideo:false, thumb:`https://drive.google.com/thumbnail?id=${dr[1]}&sz=w400` };
+  return null;
+}
+// Vimeo thumbnails need an oembed call; fill it in when it arrives (best effort).
+async function fetchVimeoThumb(url){
+  try{
+    const r = await fetch(`https://vimeo.com/api/oembed.json?url=${encodeURIComponent(url)}`);
+    if(!r.ok) return;
+    const j = await r.json();
+    if(j && j.thumbnail_url && storyMedia && storyMedia.source === "link" && storyMedia.url === url){
+      storyMedia.thumb = j.thumbnail_url;
+      renderMediaState();
+    }
+  }catch(e){ /* no thumbnail — the generic "✓ Link added!" confirmation stays */ }
 }
 function driveImgUrl(url){
   if(!url) return "";
@@ -616,23 +648,65 @@ $("submitServiceBtn").addEventListener("click", async () => {
 });
 
 /* =====================================================================
-   MEDIA (photo / flyer / video) — upload OR paste a link
-   storyMedia = { url, isVideo } once something is attached.
+   MEDIA (photo / flyer / video) — ONE per story: an uploaded file OR a
+   pasted link, never both. storyMedia = { url, isVideo, source, thumb, kind }.
+   The server only reads url + isVideo; the rest is for the UI.
 ===================================================================== */
 let storyMedia = null;
 
-function showMediaPreview(){
-  const box = $("mediaPreview");
-  if(!storyMedia){ box.style.display = "none"; box.innerHTML = ""; return; }
-  if(storyMedia.isVideo){
-    box.innerHTML = `<div class="conf">✓ Video added</div>
-      <button class="btn ghost remove" id="removeMedia">Remove</button>`;
+// Paint the media area for the current state: nothing chosen, a photo
+// uploaded, or a link added. The unused path dims out with a note (either/or).
+function renderMediaState(){
+  const up = $("uploadBox"), lk = $("linkBox");
+  // reset to the neutral "nothing chosen" state
+  up.classList.remove("disabled"); lk.classList.remove("disabled");
+  $("uploadNote").style.display = "none"; $("linkNote").style.display = "none";
+  $("uploadBtn").style.display = ""; $("uploadConfirmed").style.display = "none"; $("uploadConfirmed").innerHTML = "";
+  $("linkEntry").style.display = "";  $("linkConfirmed").style.display = "none"; $("linkConfirmed").innerHTML = "";
+  if(!storyMedia) return;
+
+  if(storyMedia.source === "upload"){
+    $("uploadBtn").style.display = "none";
+    const c = $("uploadConfirmed"); c.style.display = "block";
+    c.innerHTML = (storyMedia.isVideo
+        ? `<div class="conf-ok">✓ Video added!</div>`
+        : `<img class="conf-thumb" src="${attr(driveImgUrl(storyMedia.url))}" alt="Your photo"><div class="conf-ok">✓ Photo added!</div>`)
+      + `<button class="btn ghost media-remove" id="mediaRemoveBtn">Remove this</button>`;
+    lk.classList.add("disabled"); $("linkNote").style.display = "block";   // "Remove your photo to paste a link instead."
   } else {
-    box.innerHTML = `<img src="${attr(driveImgUrl(storyMedia.url))}" alt="Your photo">
-      <button class="btn ghost remove" id="removeMedia">Remove this</button>`;
+    $("linkEntry").style.display = "none";
+    const c = $("linkConfirmed"); c.style.display = "block";
+    const thumb = storyMedia.thumb
+      ? `<img class="conf-thumb" src="${attr(storyMedia.thumb)}" alt="Video preview" onerror="this.style.display='none'">` : "";
+    c.innerHTML = `${thumb}<div class="conf-ok">✓ Link added!</div>
+      <button class="btn ghost media-remove" id="mediaRemoveBtn">Change link</button>`;
+    up.classList.add("disabled"); $("uploadNote").style.display = "block";  // "Remove the link to add a photo instead."
   }
-  box.style.display = "block";
-  $("removeMedia").addEventListener("click", () => { storyMedia = null; $("linkInput").value = ""; $("fileInput").value = ""; showMediaPreview(); });
+  $("mediaRemoveBtn").addEventListener("click", clearMedia);
+}
+
+function clearMedia(){
+  storyMedia = null;
+  $("linkInput").value = ""; $("fileInput").value = "";
+  hideMsg("mediaMsg");
+  renderMediaState();
+  if(document.activeElement !== $("linkInput")) $("linkInput").focus();
+}
+
+// Auto-capture a pasted/typed link. We only nag about an unrecognized link on
+// blur/Enter (showError=true), never mid-typing, so it stays forgiving.
+function tryCaptureLink(showError){
+  const raw = $("linkInput").value.trim();
+  if(!raw){ if(showError) hideMsg("mediaMsg"); return; }
+  const m = recognizeMedia(raw);
+  if(m){
+    hideMsg("mediaMsg");
+    storyMedia = { url:m.url, isVideo:m.isVideo, source:"link", thumb:m.thumb, kind:m.kind };
+    renderMediaState();
+    if(m.kind === "vimeo") fetchVimeoThumb(m.url);
+  } else if(showError){
+    showMsg("mediaMsg","Hmm, that doesn't look like a video link — try a YouTube, Vimeo, or Drive link.");
+  }
 }
 
 $("uploadBtn").addEventListener("click", () => $("fileInput").click());
@@ -640,8 +714,8 @@ $("fileInput").addEventListener("change", async () => {
   hideMsg("mediaMsg");
   const file = $("fileInput").files[0];
   if(!file) return;
-  if(!/^image\/|^video\//.test(file.type)){ showMsg("mediaMsg","Please choose a photo or a video file."); return; }
-  if(file.size > CONFIG.MAX_FILE_MB * 1024 * 1024){ showMsg("mediaMsg",`That file is a bit large — please keep it under about ${CONFIG.MAX_FILE_MB} MB.`); return; }
+  if(!/^image\/|^video\//.test(file.type)){ showMsg("mediaMsg","Please choose a photo or a video file."); $("fileInput").value=""; return; }
+  if(file.size > CONFIG.MAX_FILE_MB * 1024 * 1024){ showMsg("mediaMsg",`That file is a bit large — please keep it under about ${CONFIG.MAX_FILE_MB} MB.`); $("fileInput").value=""; return; }
 
   const btn = $("uploadBtn");
   const orig = btn.innerHTML;
@@ -656,20 +730,17 @@ $("fileInput").addEventListener("change", async () => {
     const dataBase64 = String(dataUrl).split(",")[1] || "";
     const out = await postAction({ action:"uploadStoryMedia", filename:file.name, mimeType:file.type, dataBase64 });
     if(!out.ok) throw new Error(out.error || "Upload failed.");
-    storyMedia = { url: out.url, isVideo: !!out.isVideo };
-    showMediaPreview();
+    storyMedia = { url: out.url, isVideo: !!out.isVideo, source:"upload" };
+    renderMediaState();
   }catch(err){ showMsg("mediaMsg", friendly(err.message)); }
   finally{ btn.disabled = false; btn.innerHTML = orig; }
 });
 
-$("addLinkBtn").addEventListener("click", () => {
-  hideMsg("mediaMsg");
-  const url = $("linkInput").value.trim();
-  if(!url){ showMsg("mediaMsg","Paste a link first, or use the Add a Photo button."); return; }
-  if(!/^https?:\/\//i.test(url)){ showMsg("mediaMsg","That doesn't look like a web link. It should start with http."); return; }
-  storyMedia = { url, isVideo: looksLikeVideo(url) };
-  showMediaPreview();
-});
+// No "Add" button — capture the link as soon as it's pasted or entered.
+$("linkInput").addEventListener("input", () => tryCaptureLink(false));
+$("linkInput").addEventListener("paste",  () => setTimeout(() => tryCaptureLink(false), 0));
+$("linkInput").addEventListener("blur",   () => tryCaptureLink(true));
+$("linkInput").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); tryCaptureLink(true); } });
 
 /* =====================================================================
    STORY → parse → editable preview → submit
@@ -801,7 +872,7 @@ $("finalSubmitBtn").addEventListener("click", async () => {
    (session memory via in-page state; no reload, no localStorage). */
 $("shareAnotherBtn").addEventListener("click", () => {
   $("storyText").value = "";
-  storyMedia = null; $("linkInput").value = ""; $("fileInput").value = ""; showMediaPreview();
+  storyMedia = null; $("linkInput").value = ""; $("fileInput").value = ""; renderMediaState();
   nudgeAcked = false; $("nudge").style.display = "none";
   hideMsg("storyMsg"); hideMsg("mediaMsg"); hideMsg("finalMsg");
   ["pvTitle","pvYear","pvLocation","pvPeople","pvStory"].forEach(id => $(id).value = "");

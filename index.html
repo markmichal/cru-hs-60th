@@ -672,10 +672,11 @@ function driveImg(url){
   return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200` : url;
 }
 
-/* Turn a YouTube or Google Drive video LINK into an embeddable player + a
-   thumbnail. Returns null if the link isn't a recognized video (so the card
-   just falls back to a photo/placeholder). Videos are never hosted here —
-   only embedded, so they load only when a visitor opens that item. */
+/* Turn a YouTube, Vimeo, or Google Drive video LINK into an embeddable player
+   (+ a thumbnail when one is available synchronously). Returns null if the link
+   isn't a recognized video (so the card falls back to a photo/placeholder, and
+   the modal shows a clickable link). Videos are never hosted here — only
+   embedded, so they load only when a visitor opens that item. */
 function videoInfo(url){
   if(!url) return null;
   const s = String(url).trim();
@@ -684,6 +685,16 @@ function videoInfo(url){
     embed: `https://www.youtube.com/embed/${yt[1]}`,
     thumb: `https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg`
   };
+  // Vimeo: vimeo.com/ID, /channels/x/ID, /groups/x/videos/ID, player.vimeo.com/video/ID,
+  // plus an optional private hash (vimeo.com/ID/HASH or ?h=HASH). No sync thumbnail.
+  const vm = s.match(/(?:player\.vimeo\.com\/video\/|vimeo\.com\/(?:channels\/[\w-]+\/|groups\/[\w-]+\/videos\/|video\/)?)(\d{6,})/i);
+  if(vm){
+    const h = s.match(/\/\d{6,}\/([0-9a-z]+)/i) || s.match(/[?&]h=([0-9a-z]+)/i);
+    return {
+      embed: `https://player.vimeo.com/video/${vm[1]}` + (h ? `?h=${h[1]}` : ""),
+      thumb: ""        // Vimeo thumbnails need an API call; the card uses the row's photo instead
+    };
+  }
   const dr = s.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
   if(dr) return {
     embed: `https://drive.google.com/file/d/${dr[1]}/preview`,
@@ -918,7 +929,7 @@ function cardHTML(item){
   const key = DATA.indexOf(item);
   const ppl = peopleList(item);
   const vid = videoInfo(item.video);
-  const thumbUrl = vid ? vid.thumb : (item.photo ? driveImg(item.photo) : "");
+  const thumbUrl = (vid && vid.thumb) ? vid.thumb : (item.photo ? driveImg(item.photo) : "");
   return `
   <div class="g-card" data-key="${key}">
     <div class="g-media">
@@ -1223,6 +1234,11 @@ function openModal(key){
     mv.innerHTML = `<div class="m-video"><iframe src="${esc(vid.embed)}" allow="encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
     mv.style.display = "block";
     img.style.display = "none";
+  } else if(d.video){
+    // A video link we can't embed — give a clickable link rather than breaking.
+    mv.innerHTML = `<a class="item-btn" href="${esc(d.video)}" target="_blank" rel="noopener">▶ Watch the video →</a>`;
+    mv.style.display = "block";
+    if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
   } else {
     mv.innerHTML = ""; mv.style.display = "none";
     if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
