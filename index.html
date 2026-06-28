@@ -804,7 +804,7 @@ function rowsToItems(json){
   const I = {
     title:idx("title"), year:idx("year"), loc:idx("location"), people:idx("people"),
     type:idx("type"), story:idx("story"), photo:idx("photo"),
-    bl:idx("button label"), bu:idx("button url"),
+    bl:idx("button label"), bu:idx("button url"), event:idx("event"),
     approved:idx("approved"), tl:idx("timeline"), fe:idx("featured")
   };
   const val = (row,i) => (i>=0 && row.c && row.c[i]) ? (row.c[i].v ?? "") : "";
@@ -822,6 +822,9 @@ function rowsToItems(json){
     story: String(val(r,I.story)),
     photo: String(val(r,I.photo)),
     video: String(videoVal(r)),
+    // Event grouping (Phase 1): items sharing this name collapse into one event card.
+    // Code only trims; blank = no event. Spelling cleanup is done by the team in the Sheet.
+    event: String(val(r,I.event)).trim(),
     buttonLabel: String(val(r,I.bl)),
     buttonUrl: String(val(r,I.bu)),
     approved: val(r,I.approved) === true || String(val(r,I.approved)).toUpperCase() === "TRUE",
