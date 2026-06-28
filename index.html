@@ -239,6 +239,13 @@
     font-size: 1.25rem; padding-left: 4px; pointer-events: none; transition: background 0.15s;
   }
   .g-card:hover .play-badge { background: var(--vermilion); }
+  /* Event grouping (Phase 2): count badge; the deck look + photo rotation land in Phase 3 */
+  .event-count {
+    position: absolute; top: 8px; right: 8px; background: var(--black); color: #fff;
+    font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.72rem; letter-spacing: 0.03em;
+    padding: 3px 8px; border-radius: 12px; pointer-events: none;
+  }
+  .t-card .event-count-line { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.78rem; color: var(--turquoise); margin-top: 2px; }
   .g-card .no-img { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--soft), var(--gray)); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 2rem; color: var(--graphite); }
   .g-body { padding: 13px 14px 15px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
   .g-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.72rem; }
@@ -914,9 +921,8 @@ function timelineItems(){
   return priority.concat(rest).slice(0, CONFIG.MAX_TRACK).sort((a,b)=>a.year-b.year);
 }
 
-function renderTimeline(){
-  const events = timelineItems();
-  $("timelineTrack").innerHTML = events.map(e => `
+function timelineItemHTML(e){
+  return `
     <div class="t-event ${e.type==='Milestone'?'milestone':''}">
       <div class="t-card" data-key="${DATA.indexOf(e)}">
         ${e.photo ? `<img class="t-thumb" src="${esc(driveImg(e.photo))}" alt="" loading="lazy">` : ""}
@@ -926,7 +932,29 @@ function renderTimeline(){
       </div>
       <div class="dot"></div>
       ${e.year ? `<div class="t-tick"><span>${e.year}</span></div>` : ""}
-    </div>`).join("");
+    </div>`;
+}
+// Timeline event card (Phase 2: static cover + count line; Phase 3 adds the deck
+// look + rotating photos). data-event keys it for the Phase 4 pop-out.
+function timelineEventHTML(g){
+  const cover = eventPhotos(g)[0] || "";
+  return `
+    <div class="t-event is-event">
+      <div class="t-card" data-event="${esc(g.event)}">
+        ${cover ? `<img class="t-thumb" src="${esc(cover)}" alt="" loading="lazy">` : ""}
+        <div class="t-year">${g.year || ""}</div>
+        <h4>${esc(g.event)}</h4>
+        <p class="event-count-line">${g.items.length} items</p>
+      </div>
+      <div class="dot"></div>
+      ${g.year ? `<div class="t-tick"><span>${g.year}</span></div>` : ""}
+    </div>`;
+}
+
+function renderTimeline(){
+  const entries = collapseEvents(timelineItems());
+  $("timelineTrack").innerHTML = entries.map(en =>
+    en.kind === "event" ? timelineEventHTML(en) : timelineItemHTML(en.item)).join("");
 
   const eras = eraList();
   $("eraTabs").innerHTML =
@@ -941,6 +969,70 @@ function renderTimeline(){
   } else {
     $("eraHeading").style.display = "none";
   }
+}
+
+/* ============ EVENT GROUPING ============ */
+// Collapse an ALREADY-FILTERED, year-sorted list into a mix of single items and
+// event groups. Items sharing a (trimmed, non-blank) Event value become ONE group
+// — but ONLY when 2+ of them are present in THIS list; a lone item renders as a
+// normal single card even if it carries an Event value. Because this runs per view
+// on its post-filter list, the "{n} items" badge and the resolved year always
+// reflect what that view actually shows (e.g. an event with one On-Timeline item
+// is a single card on the timeline but still groups fully in the gallery).
+function collapseEvents(items){
+  const groups = new Map();
+  const order = [];
+  for(const it of items){
+    const ev = it.event;                       // trimmed in rowsToItems; "" = no event
+    if(!ev){ order.push({ kind:"item", item:it, year:it.year||0 }); continue; }
+    let g = groups.get(ev);
+    if(!g){ g = { kind:"event", event:ev, items:[], year:0 }; groups.set(ev, g); order.push(g); }
+    g.items.push(it);
+  }
+  const out = [];
+  for(const e of order){
+    if(e.kind === "item") out.push(e);
+    else if(e.items.length < 2) out.push({ kind:"item", item:e.items[0], year:e.items[0].year||0 });
+    else { e.year = eventYear(e.event, e.items); out.push(e); }
+  }
+  return out.sort((a,b)=>(a.year||0)-(b.year||0));
+}
+
+// A group's display year: the agreed year, or the earliest if items disagree
+// (logged so bad Year data is easy to spot and fix in the Sheet).
+function eventYear(name, items){
+  const years = items.map(i=>i.year).filter(Boolean);
+  if(!years.length) return 0;
+  const min = Math.min(...years);
+  if(min !== Math.max(...years)) console.warn(`Event "${name}": items have different years (using earliest ${min}). Clean up the Year column in the Sheet.`);
+  return min;
+}
+
+// Usable photo/thumbnail URLs for a group — the card cover now; rotated in Phase 3.
+function eventPhotos(g){
+  return g.items.map(it => {
+    const vid = videoInfo(it.video);
+    return (vid && vid.thumb) ? vid.thumb : (it.photo ? driveImg(it.photo) : "");
+  }).filter(Boolean);
+}
+
+// Gallery event card (Phase 2: static cover + count badge; Phase 3 adds the deck
+// look + rotating photos). data-event keys it for the Phase 4 pop-out.
+function eventCardHTML(g){
+  const cover = eventPhotos(g)[0] || "";
+  return `
+  <div class="g-card is-event" data-event="${esc(g.event)}">
+    <div class="g-media">
+      ${cover
+        ? `<img src="${esc(cover)}" alt="${esc(g.event)}" loading="lazy">`
+        : `<div class="no-img">${g.year || "?"}</div>`}
+      <span class="event-count">${g.items.length} items</span>
+    </div>
+    <div class="g-body">
+      <div class="g-meta">${g.year ? `<span class="tag year">${g.year}</span>` : ""}</div>
+      <h4>${esc(g.event)}</h4>
+    </div>
+  </div>`;
 }
 
 /* ============ RENDER: GALLERY ============ */
@@ -985,10 +1077,13 @@ function applyFilters(){
 }
 
 function renderGallery(){
-  const items = applyFilters();
-  $("galleryGrid").innerHTML = items.map(cardHTML).join("");
-  $("galleryEmpty").style.display = items.length ? "none" : "block";
-  $("resultCount").textContent = `${items.length} item${items.length===1?"":"s"}`;
+  const entries = collapseEvents(applyFilters());
+  $("galleryGrid").innerHTML = entries.map(e => e.kind === "event" ? eventCardHTML(e) : cardHTML(e.item)).join("");
+  $("galleryEmpty").style.display = entries.length ? "none" : "block";
+  // Count underlying items shown (an event group counts as its grouped item count),
+  // so the tally stays honest even though several items collapse into one card.
+  const shown = entries.reduce((n,e) => n + (e.kind === "event" ? e.items.length : 1), 0);
+  $("resultCount").textContent = `${shown} item${shown===1?"":"s"}`;
 }
 
 function buildFilterOptions(){
