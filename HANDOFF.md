@@ -201,5 +201,12 @@ Renamed the site from **High School History → High School Legacy** and the dom
   2. **Hidden editor (PIN 6060):** if `headerTitle` was ever saved in Site Settings, change it to **"Cru High School Legacy"** (same for any other saved name text). HTML-default spots (title/og/twitter) need nothing — they're already updated.
 - **No redeploy:** the Apps Script is untouched.
 
+## 2026-06-27 — "See more from the decade" link in the card pop-out (index.html only)
+**Front-end only; no Apps Script, no redeploy.** Bridges the Timeline and the fuller Stories collection: at the bottom of a card pop-out, a subtle link jumps to the Stories view pre-filtered to that card's decade.
+- **The link.** In `openModal`, a new `#modalDecadeLink` (last element in `.m-body`) renders `<a class="watch-link" … data-decade-jump="1960s">See more from the 1960s →</a>` when the item has a year — same restrained underlined-blue treatment as the "Watch the video" link, with the arrow. **Omitted when the card has no year** (no decade to point to). The decade text comes from the existing `decadeOf(year)` (1967 → "1960s").
+- **Navigation reuses the existing decade filter.** New `goToDecade(decade)` sets `filters = {decade, …}`, activates the matching button in the Stories decade bar (the bar is built by `buildFilterOptions`, so the active class is toggled here just like the bar's own click handler and `goToYear` do), calls `renderGallery()`, and `switchView("gallery")`. Wired in the global click delegation next to the year/location/person handlers: `data-decade-jump` → `preventDefault` + `closeModal()` + `goToDecade(...)`. **In-page state only — no URL hash, no localStorage** (fits the existing SPA pattern).
+- **Appears on every card pop-out with a year** (the modal is shared by Timeline and Stories cards) — so all timeline cards get it; gallery cards do too (harmless, occasionally redundant). Say the word if you want it Timeline-only.
+- **Verified (preview):** a 1967 card shows "See more from the 1960s →"; clicking lands on the Stories view with the **1960s decade button active** (only that one) and **only 1960s cards** showing, modal closed, Stories nav highlighted; a no-year item omits the link; no console errors. Existing timeline / decade filter / gallery / other views untouched.
+
 ## Earlier next task (now done) — build `share.html`
 Built as Stage 1 above. Stage 2 (auto-rename) remains.

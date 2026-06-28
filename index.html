@@ -200,6 +200,8 @@
   /* Quiet, last-resort link to a video's source (not a primary CTA). */
   .watch-link { display: inline-block; margin-top: 10px; color: #2563a8; font-size: 0.85rem; text-decoration: underline; font-weight: 400; }
   .watch-link:hover { color: var(--black); }
+  /* Subtle "see more from the decade" link at the bottom of a card pop-out. */
+  .m-decade { margin-top: 14px; }
 
   /* ============ FILTER BAR ============ */
   /* Three equal-width controls (search + two dropdowns), each one-third of the
@@ -535,6 +537,7 @@
       <div class="m-story" id="modalStory"></div>
       <div id="modalBtnWrap"></div>
       <div class="m-credit" id="modalCredit"></div>
+      <div class="m-decade" id="modalDecadeLink"></div>
     </div>
   </div>
 </div>
@@ -1237,6 +1240,20 @@ function goToYear(year){
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+// Open the Stories (gallery) view pre-filtered to a decade (e.g. "1960s").
+// The decade bar is built by buildFilterOptions (not renderGallery), so we
+// activate the matching button here — same as the decade-bar click handler.
+function goToDecade(decade){
+  filters = { search:"", decade:decade, location:"", person:"", type:"" };
+  $("searchBox").value = "";
+  $("locationFilter").value = ""; $("personFilter").value = "";
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  document.querySelectorAll("#galleryDecades .era-tab").forEach(b => b.classList.toggle("active", (b.dataset.decade || "") === decade));
+  renderGallery();
+  switchView("gallery");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 /* The warm "watch at the source" card — used instead of any third-party embed
    error box. Poster = the row's photo if present, else a clapboard icon. */
 function videoButtonCard(d){
@@ -1324,6 +1341,12 @@ function openModal(key){
   const ppl = peopleList(d);
   $("modalCredit").innerHTML = ppl.length
     ? `<span class="credit-label">People:</span> <div class="people-row">${ppl.map(p=>`<button class="person-pill" data-person="${esc(p)}">${esc(p)}</button>`).join("")}</div>`
+    : "";
+  // Subtle bridge to the fuller Stories collection for this card's decade.
+  // Omitted when the card has no year (no decade to point to).
+  const dec = d.year ? decadeOf(d.year) : "";
+  $("modalDecadeLink").innerHTML = dec
+    ? `<a class="watch-link" href="#" data-decade-jump="${esc(dec)}">See more from the ${esc(dec)} →</a>`
     : "";
   $("modalOverlay").classList.add("open");
 }
@@ -1516,6 +1539,9 @@ document.addEventListener("click", e => {
 
   const yearLink = e.target.closest("[data-year]");
   if(yearLink){ e.stopPropagation(); closeModal(); goToYear(yearLink.dataset.year); return; }
+
+  const decJump = e.target.closest("[data-decade-jump]");
+  if(decJump){ e.preventDefault(); e.stopPropagation(); closeModal(); goToDecade(decJump.dataset.decadeJump); return; }
 
   const card = e.target.closest("[data-key]");
   if(card){ openModal(parseInt(card.dataset.key)); return; }
