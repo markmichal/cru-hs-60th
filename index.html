@@ -239,13 +239,38 @@
     font-size: 1.25rem; padding-left: 4px; pointer-events: none; transition: background 0.15s;
   }
   .g-card:hover .play-badge { background: var(--vermilion); }
-  /* Event grouping (Phase 2): count badge; the deck look + photo rotation land in Phase 3 */
+  /* ---- Event grouping cards: stacked "deck" + rotating photos (Phase 3) ---- */
   .event-count {
-    position: absolute; top: 8px; right: 8px; background: var(--black); color: #fff;
+    position: absolute; top: 8px; right: 8px; z-index: 2; background: var(--black); color: #fff;
     font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.72rem; letter-spacing: 0.03em;
     padding: 3px 8px; border-radius: 12px; pointer-events: none;
   }
-  .t-card .event-count-line { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.78rem; color: var(--turquoise); margin-top: 2px; }
+  /* rotating photo deck — crossfade between the group's photos (height from context) */
+  .ev-deck { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--soft), var(--gray)); }
+  .ev-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.7s ease; }
+  .ev-photo.active { opacity: 1; }
+  .g-card.is-event .ev-deck { height: 165px; }
+  /* deck edges peeking behind the front card (box-shadow is NOT clipped by overflow:hidden) */
+  .g-card.is-event {
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06),
+      5px 5px 0 -1px var(--card), 5px 5px 0 0 var(--card-border),
+      10px 10px 0 -1px var(--card), 10px 10px 0 0 var(--card-border);
+  }
+  .g-card.is-event:hover {
+    box-shadow: 0 8px 22px rgba(0,0,0,0.10),
+      5px 5px 0 -1px var(--card), 5px 5px 0 0 var(--card-border),
+      10px 10px 0 -1px var(--card), 10px 10px 0 0 var(--card-border);
+  }
+  .t-event.is-event .t-card {
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06),
+      4px 4px 0 -1px var(--card), 4px 4px 0 0 var(--card-border),
+      8px 8px 0 -1px var(--card), 8px 8px 0 0 var(--card-border);
+  }
+  .t-event.is-event .t-card:hover {
+    box-shadow: 0 6px 18px rgba(0,0,0,0.10),
+      4px 4px 0 -1px var(--card), 4px 4px 0 0 var(--card-border),
+      8px 8px 0 -1px var(--card), 8px 8px 0 0 var(--card-border);
+  }
   .g-card .no-img { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--soft), var(--gray)); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 2rem; color: var(--graphite); }
   .g-body { padding: 13px 14px 15px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
   .g-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.72rem; }
@@ -934,17 +959,15 @@ function timelineItemHTML(e){
       ${e.year ? `<div class="t-tick"><span>${e.year}</span></div>` : ""}
     </div>`;
 }
-// Timeline event card (Phase 2: static cover + count line; Phase 3 adds the deck
-// look + rotating photos). data-event keys it for the Phase 4 pop-out.
+// Timeline event card: same deck treatment as the gallery — stacked look (CSS),
+// rotating photo thumb, count badge, face text = event name + year + count.
 function timelineEventHTML(g){
-  const cover = eventPhotos(g)[0] || "";
   return `
     <div class="t-event is-event">
       <div class="t-card" data-event="${esc(g.event)}">
-        ${cover ? `<img class="t-thumb" src="${esc(cover)}" alt="" loading="lazy">` : ""}
+        <div class="t-thumb ev-deck">${eventDeckLayers(g)}<span class="event-count">${g.items.length} items</span></div>
         <div class="t-year">${g.year || ""}</div>
         <h4>${esc(g.event)}</h4>
-        <p class="event-count-line">${g.items.length} items</p>
       </div>
       <div class="dot"></div>
       ${g.year ? `<div class="t-tick"><span>${g.year}</span></div>` : ""}
@@ -1016,16 +1039,20 @@ function eventPhotos(g){
   }).filter(Boolean);
 }
 
-// Gallery event card (Phase 2: static cover + count badge; Phase 3 adds the deck
-// look + rotating photos). data-event keys it for the Phase 4 pop-out.
+// Stacked photo layers for an event deck — the first is active; a global ticker
+// crossfades them every ~2s (see startEventRotators). Crop-to-fill via object-fit.
+function eventDeckLayers(g){
+  const photos = eventPhotos(g);
+  if(!photos.length) return `<div class="no-img">${g.year || "?"}</div>`;
+  return photos.map((p,i) => `<img class="ev-photo${i===0?" active":""}" src="${esc(p)}" alt="" loading="lazy">`).join("");
+}
+// Gallery event card: stacked "deck" look (CSS), rotating photo face, count badge,
+// face text limited to event name + year + count. data-event keys the pop-out.
 function eventCardHTML(g){
-  const cover = eventPhotos(g)[0] || "";
   return `
   <div class="g-card is-event" data-event="${esc(g.event)}">
-    <div class="g-media">
-      ${cover
-        ? `<img src="${esc(cover)}" alt="${esc(g.event)}" loading="lazy">`
-        : `<div class="no-img">${g.year || "?"}</div>`}
+    <div class="g-media ev-deck">
+      ${eventDeckLayers(g)}
       <span class="event-count">${g.items.length} items</span>
     </div>
     <div class="g-body">
@@ -1560,6 +1587,27 @@ function startHeroTimer(){
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   if(HERO.length > 1 && !reduce) heroTimer = setInterval(() => setHeroSlide(heroIdx + 1), heroSeconds() * 1000);
 }
+
+// Rotate the photos on every event-deck card (~2s crossfade). ONE global ticker
+// that reads the DOM fresh each tick, so it covers any decks created by re-renders
+// (filtering, view switches) without per-element bookkeeping. Honors reduced motion
+// by simply never starting — the first photo stays shown.
+let eventRotateTimer = null;
+function startEventRotators(){
+  clearInterval(eventRotateTimer);
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(reduce) return;
+  eventRotateTimer = setInterval(() => {
+    document.querySelectorAll(".ev-deck").forEach(deck => {
+      const photos = deck.querySelectorAll(".ev-photo");
+      if(photos.length < 2) return;
+      let i = 0;
+      photos.forEach((p,k) => { if(p.classList.contains("active")) i = k; });
+      photos[i].classList.remove("active");
+      photos[(i + 1) % photos.length].classList.add("active");
+    });
+  }, 2000);
+}
 function renderHeroCarousel(){
   HERO = heroItems();
   const hero = $("hero");
@@ -1707,6 +1755,7 @@ document.addEventListener("keydown", e => {
   await loadData();
   applySettings();
   renderAll();
+  startEventRotators();   // begin the ~2s event-deck photo rotation (DOM-driven, covers re-renders)
 })();
 </script>
 </body>
