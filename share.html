@@ -132,10 +132,6 @@
   .field-error{display:none; color:var(--vermilion); font-weight:700; font-size:.92rem; margin-top:6px; line-height:1.45;}
   .req{font-weight:600; color:var(--vermilion); font-size:.85em;}
 
-  /* auto-assigned Type — read-only (the submitter doesn't pick a type) */
-  .readonly-type{width:100%; background:#f5f5f5; border:2px solid var(--gray); border-radius:8px;
-    padding:14px; font-size:1.1rem; font-weight:700; color:var(--black);}
-
   /* ---------- Service preview table ---------- */
   .preview-wrap{overflow-x:auto;}
   table{border-collapse:collapse; width:100%; min-width:520px; margin-top:6px;}
@@ -344,9 +340,9 @@
         <input type="text" id="pvPeople" placeholder="Names, separated by commas">
         <p class="encourage" id="encPeople"></p>
       </div>
-      <div class="field"><label>Type</label>
-        <div id="pvTypeShow" class="readonly-type">Story</div>
-        <div class="hint">We set this automatically from what you added — our team can adjust it later.</div>
+      <div class="field"><label for="pvType">Type</label>
+        <select id="pvType"><option>Photo</option><option>Flyer</option><option>Story</option><option>Video</option></select>
+        <div class="hint">We set this automatically from what you added — change it if needed.</div>
       </div>
       <div class="field full"><label for="pvStory">The story</label><textarea id="pvStory"></textarea></div>
     </div>
@@ -725,8 +721,10 @@ function autoAssignType(){
   if(m.source === "upload" && m.isPdf) return "Flyer";   // a PDF self-sorts to Flyer
   return "Photo";                                        // image upload or non-video link
 }
-// Keep the read-only Type display in sync with the current media.
-function refreshAutoType(){ const el = $("pvTypeShow"); if(el) el.textContent = autoAssignType(); }
+// Default the editable Type dropdown to the auto-assigned value for the current
+// media. The submitter can still override it; their choice is what gets submitted
+// (re-defaults only when the media itself changes — see renderVerifyMedia callers).
+function refreshAutoType(){ const el = $("pvType"); if(el) el.value = autoAssignType(); }
 // Visual block: the thumbnail if we have one (with an onerror swap to the icon),
 // else a clean video icon — never blank. `cls` lets callers size the image.
 function mediaVisualHTML(m, cls){
@@ -920,7 +918,7 @@ $("finalSubmitBtn").addEventListener("click", async () => {
     year:     $("pvYear").value.trim(),
     location: $("pvLocation").value.trim(),
     people:   $("pvPeople").value.trim(),
-    type:     autoAssignType(),               // PDF→Flyer · image→Photo · video→Video · none→Story
+    type:     $("pvType").value,              // auto-assigned default, but submitter can override
     story:    $("pvStory").value.trim()
   };
   if(!story.title){ $("finalMsg").className = "msg error"; showMsg("finalMsg","Please give your story a short title."); $("pvTitle").focus(); return; }

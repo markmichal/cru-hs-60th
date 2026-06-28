@@ -993,12 +993,11 @@ function buildFilterOptions(){
   const locs = [...new Set(DATA.map(d=>d.location).filter(Boolean))].sort();
   const people = [...new Set(DATA.flatMap(peopleList))].sort();
   // Canonical, ordered type filter buttons: Milestone · Photo · Flyer · Story · Video.
+  // ALWAYS show all five, even when no item of that type exists yet (clicking one with
+  // no items just yields an empty result — applyFilters matches type case-insensitively).
   // "Event" is intentionally excluded — it's becoming a grouping tag, not a type, so
   // Event-typed items still appear under "All Decades"/their decade, just with no chip.
-  // Only types that actually have items get a button (mirrors the decade-bar behavior).
-  const TYPE_ORDER = ["Milestone","Photo","Flyer","Story","Video"];
-  const present = new Set(DATA.map(d=>(d.type||"").toLowerCase()).filter(Boolean));
-  const types = TYPE_ORDER.filter(t => present.has(t.toLowerCase()));
+  const types = ["Milestone","Photo","Flyer","Story","Video"];
   // Decade bar: "All Decades" + one button per decade that actually has items.
   // Reuses the timeline's .era-tab styling; clicks handled in #galleryDecades.
   $("galleryDecades").innerHTML =
