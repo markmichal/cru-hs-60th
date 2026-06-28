@@ -972,7 +972,7 @@ function applyFilters(){
     if(filters.decade && decadeOf(d.year) !== filters.decade) return false;
     if(filters.location && d.location !== filters.location) return false;
     if(filters.person && !peopleList(d).includes(filters.person)) return false;
-    if(filters.type && d.type !== filters.type) return false;
+    if(filters.type && (d.type||"").toLowerCase() !== filters.type.toLowerCase()) return false;
     if(q){
       const hay = `${d.title} ${d.story} ${d.location} ${d.people} ${d.year || ""}`.toLowerCase();
       if(!hay.includes(q)) return false;
@@ -992,8 +992,13 @@ function buildFilterOptions(){
   const decades = [...new Set(DATA.map(d=>decadeOf(d.year)).filter(Boolean))].sort();
   const locs = [...new Set(DATA.map(d=>d.location).filter(Boolean))].sort();
   const people = [...new Set(DATA.flatMap(peopleList))].sort();
-  // The "Story" type is retired — items are Photo/Flyer/Video/Event/Milestone.
-  const types = [...new Set(DATA.map(d=>d.type).filter(Boolean))].filter(t => t.toLowerCase() !== "story");
+  // Canonical, ordered type filter buttons: Milestone · Photo · Flyer · Story · Video.
+  // "Event" is intentionally excluded — it's becoming a grouping tag, not a type, so
+  // Event-typed items still appear under "All Decades"/their decade, just with no chip.
+  // Only types that actually have items get a button (mirrors the decade-bar behavior).
+  const TYPE_ORDER = ["Milestone","Photo","Flyer","Story","Video"];
+  const present = new Set(DATA.map(d=>(d.type||"").toLowerCase()).filter(Boolean));
+  const types = TYPE_ORDER.filter(t => present.has(t.toLowerCase()));
   // Decade bar: "All Decades" + one button per decade that actually has items.
   // Reuses the timeline's .era-tab styling; clicks handled in #galleryDecades.
   $("galleryDecades").innerHTML =

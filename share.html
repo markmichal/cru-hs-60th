@@ -132,6 +132,10 @@
   .field-error{display:none; color:var(--vermilion); font-weight:700; font-size:.92rem; margin-top:6px; line-height:1.45;}
   .req{font-weight:600; color:var(--vermilion); font-size:.85em;}
 
+  /* auto-assigned Type — read-only (the submitter doesn't pick a type) */
+  .readonly-type{width:100%; background:#f5f5f5; border:2px solid var(--gray); border-radius:8px;
+    padding:14px; font-size:1.1rem; font-weight:700; color:var(--black);}
+
   /* ---------- Service preview table ---------- */
   .preview-wrap{overflow-x:auto;}
   table{border-collapse:collapse; width:100%; min-width:520px; margin-top:6px;}
@@ -257,7 +261,7 @@
 
     <div class="media-grid">
       <div class="upload-box media-col" id="uploadBox">
-        <input type="file" id="fileInput" accept="image/*,video/*" style="display:none">
+        <input type="file" id="fileInput" accept="image/*,video/*,application/pdf,.pdf" style="display:none">
         <button class="upload-btn" id="uploadBtn">
           <span class="ic">📷</span>
           <span>Add a Photo</span>
@@ -340,8 +344,9 @@
         <input type="text" id="pvPeople" placeholder="Names, separated by commas">
         <p class="encourage" id="encPeople"></p>
       </div>
-      <div class="field"><label for="pvType">Type</label>
-        <select id="pvType"><option>Photo</option><option>Flyer</option><option>Video</option><option>Event</option></select>
+      <div class="field"><label>Type</label>
+        <div id="pvTypeShow" class="readonly-type">Story</div>
+        <div class="hint">We set this automatically from what you added — our team can adjust it later.</div>
       </div>
       <div class="field full"><label for="pvStory">The story</label><textarea id="pvStory"></textarea></div>
     </div>
@@ -706,9 +711,22 @@ function mediaThumbSrc(m){
 // A friendly "✓ ... added!" label for the current media.
 function mediaLabel(m){
   if(!m) return "";
-  if(!m.isVideo) return "✓ Photo added!";
+  if(!m.isVideo) return (m.source === "upload" && m.isPdf) ? "✓ Flyer added!" : "✓ Photo added!";
   return m.kind === "vimeo" ? "✓ Vimeo video added!" : "✓ Video added!";
 }
+
+// Auto-assign the item Type from what the submitter provided — they never pick it.
+//   video (file or link) → Video · PDF upload → Flyer · other media → Photo · none → Story
+// "Milestone" is never auto-assigned; it's a team-only type set during review.
+function autoAssignType(){
+  const m = storyMedia;
+  if(!m) return "Story";                                 // text/story only, no media
+  if(m.isVideo) return "Video";                          // uploaded video OR pasted video link
+  if(m.source === "upload" && m.isPdf) return "Flyer";   // a PDF self-sorts to Flyer
+  return "Photo";                                        // image upload or non-video link
+}
+// Keep the read-only Type display in sync with the current media.
+function refreshAutoType(){ const el = $("pvTypeShow"); if(el) el.textContent = autoAssignType(); }
 // Visual block: the thumbnail if we have one (with an onerror swap to the icon),
 // else a clean video icon — never blank. `cls` lets callers size the image.
 function mediaVisualHTML(m, cls){
@@ -751,6 +769,7 @@ function renderMediaState(){
 // Mirror the attached media at the top of the "Does this look right?" step, so
 // they can see their photo/video is coming along with the parsed story.
 function renderVerifyMedia(){
+  refreshAutoType();                          // keep the auto-assigned Type in sync
   const box = $("pvMedia");
   if(!box) return;
   if(!storyMedia){ box.style.display = "none"; box.innerHTML = ""; return; }
@@ -788,7 +807,8 @@ $("fileInput").addEventListener("change", async () => {
   hideMsg("mediaMsg");
   const file = $("fileInput").files[0];
   if(!file) return;
-  if(!/^image\/|^video\//.test(file.type)){ showMsg("mediaMsg","Please choose a photo or a video file."); $("fileInput").value=""; return; }
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+  if(!isPdf && !/^image\/|^video\//.test(file.type)){ showMsg("mediaMsg","Please choose a photo, a PDF flyer, or a video file."); $("fileInput").value=""; return; }
   if(file.size > CONFIG.MAX_FILE_MB * 1024 * 1024){ showMsg("mediaMsg",`That file is a bit large — please keep it under about ${CONFIG.MAX_FILE_MB} MB.`); $("fileInput").value=""; return; }
 
   const btn = $("uploadBtn");
@@ -804,7 +824,7 @@ $("fileInput").addEventListener("change", async () => {
     const dataBase64 = String(dataUrl).split(",")[1] || "";
     const out = await postAction({ action:"uploadStoryMedia", filename:file.name, mimeType:file.type, dataBase64 });
     if(!out.ok) throw new Error(out.error || "Upload failed.");
-    storyMedia = { url: out.url, isVideo: !!out.isVideo, source:"upload" };
+    storyMedia = { url: out.url, isVideo: !!out.isVideo, source:"upload", isPdf };
     renderMediaState();
   }catch(err){ showMsg("mediaMsg", friendly(err.message)); }
   finally{ btn.disabled = false; btn.innerHTML = orig; }
@@ -878,8 +898,7 @@ $("shareBtn").addEventListener("click", async () => {
     $("pvYear").value = f.year || "";
     $("pvLocation").value = f.location || "";
     $("pvPeople").value = f.people || "";
-    $("pvType").value = ["Photo","Flyer","Video","Event"].includes(f.type) ? f.type : "Photo";
-    $("pvStory").value = f.story || story;
+    $("pvStory").value = f.story || story;   // Type is auto-assigned from media, not the AI parse
     resetEncourage();
     renderVerifyMedia();                       // show their photo/video atop the preview
     $("finalSubmitBtn").textContent = "Share my story";
@@ -901,7 +920,7 @@ $("finalSubmitBtn").addEventListener("click", async () => {
     year:     $("pvYear").value.trim(),
     location: $("pvLocation").value.trim(),
     people:   $("pvPeople").value.trim(),
-    type:     $("pvType").value,
+    type:     autoAssignType(),               // PDF→Flyer · image→Photo · video→Video · none→Story
     story:    $("pvStory").value.trim()
   };
   if(!story.title){ $("finalMsg").className = "msg error"; showMsg("finalMsg","Please give your story a short title."); $("pvTitle").focus(); return; }
@@ -951,7 +970,7 @@ $("shareAnotherBtn").addEventListener("click", () => {
   nudgeAcked = false; $("nudge").style.display = "none";
   hideMsg("storyMsg"); hideMsg("mediaMsg"); hideMsg("finalMsg");
   ["pvTitle","pvYear","pvLocation","pvPeople","pvStory"].forEach(id => $(id).value = "");
-  $("pvType").value = "Photo";   // "Story" was retired from this dropdown; default to Photo
+  refreshAutoType();             // back to "Story" — renderMediaState above already cleared media
   resetEncourage();
   $("finalSubmitBtn").textContent = "Share my story";
   $("storyCard").style.display = "block";       // yourName / yourEmail keep their values
