@@ -377,6 +377,15 @@
   .ev-item-text h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 1rem; margin: 0 0 5px; color: var(--black); }
   .ev-item-text .people-row { margin-top: 8px; }
   @media (max-width: 520px){ .ev-item { flex-direction: column; } .ev-item-photo { width: 100%; height: 180px; } }
+  .ev-item-meta { margin: 2px 0 8px; }
+  .ev-item-photo.lb-open { cursor: zoom-in; }
+  /* Photo lightbox — a lightweight image overlay ABOVE the pop-out (z-index over the
+     modal). Closing it returns to the pop-out untouched (scroll preserved). */
+  .img-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 600; align-items: center; justify-content: center; flex-direction: column; gap: 14px; padding: 24px; }
+  .img-lightbox.open { display: flex; }
+  .img-lightbox img { max-width: 92vw; max-height: 82vh; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .img-lightbox .lb-close { position: absolute; top: 14px; right: 16px; width: 40px; height: 40px; background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 50%; font-size: 1.4rem; line-height: 1; cursor: pointer; }
+  .img-lightbox .lb-full { color: #fff; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.85rem; text-decoration: underline; }
   .modal-close { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; background: rgba(0,0,0,0.55); border: none; color: var(--white); border-radius: 50%; font-size: 1.1rem; line-height: 1; z-index: 2; }
 
   /* Settings form */
@@ -593,6 +602,13 @@
   </div>
 </div>
 
+<!-- PHOTO LIGHTBOX (opens over the event pop-out) -->
+<div class="img-lightbox" id="imgLightbox">
+  <button class="lb-close" data-close="imgLightbox" aria-label="Close">&times;</button>
+  <img id="lbImg" alt="">
+  <a id="lbFull" class="lb-full" target="_blank" rel="noopener">View full image →</a>
+</div>
+
 <!-- SETTINGS MODAL -->
 <div class="modal-overlay" id="settingsOverlay">
   <div class="modal" role="dialog" aria-modal="true">
@@ -734,6 +750,24 @@ function driveImg(url){
   if(!url) return "";
   const m = String(url).match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
   return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200` : url;
+}
+// Same Drive id, requested at a larger width (the thumbnail endpoint caps at the
+// original size). Falls back to the URL as-is when it isn't a Drive link.
+function driveImgSize(url, w){
+  const m = String(url || "").match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w${w}` : (url || "");
+}
+// Lightweight photo lightbox over the event pop-out. Does NOT touch the modal, so
+// the pop-out (and its scroll position) stay intact behind it.
+function openLightbox(url){
+  if(!url) return;
+  $("lbImg").src = driveImgSize(url, 1600);     // enlarged view
+  $("lbFull").href = driveImgSize(url, 2400);   // highest easy size, opened in a new tab
+  $("imgLightbox").classList.add("open");
+}
+function closeLightbox(){
+  $("imgLightbox").classList.remove("open");
+  $("lbImg").src = "";
 }
 
 /* Turn a YouTube, Vimeo, or Google Drive video LINK into an embeddable player
@@ -1522,13 +1556,18 @@ function openModal(key){
 // there is no nested second pop-out; this is the single level of detail.
 function eventItemHTML(it){
   const vid = videoInfo(it.video);
+  const isPhoto = !vid && !!it.photo;                    // a real photo (not a video) → lightbox-enabled
   const thumb = (vid && vid.thumb) ? vid.thumb : (it.photo ? driveImg(it.photo) : "");
   const ppl = peopleList(it);
+  const imgHTML = thumb
+    ? `<img class="ev-item-photo${isPhoto ? " lb-open" : ""}" src="${esc(thumb)}" alt="${esc(it.title)}"${isPhoto ? ` data-photo="${esc(it.photo)}"` : ""} loading="lazy">`
+    : "";
   return `
     <div class="ev-item">
-      ${thumb ? `<img class="ev-item-photo" src="${esc(thumb)}" alt="${esc(it.title)}" loading="lazy">` : ""}
+      ${imgHTML}
       <div class="ev-item-text">
         ${it.title ? `<h4>${esc(it.title)}</h4>` : ""}
+        ${it.type ? `<div class="g-meta ev-item-meta"><span class="tag type-${esc(it.type)}">${esc(it.type)}</span></div>` : ""}
         ${it.story ? `<div class="m-story">${esc(it.story)}</div>` : ""}
         ${ppl.length ? `<div class="people-row">${ppl.map(p=>`<button class="person-pill" data-person="${esc(p)}">${esc(p)}</button>`).join("")}</div>` : ""}
       </div>
@@ -1759,6 +1798,10 @@ document.addEventListener("click", e => {
   // Clickable person / location / year anywhere on the site jump to "like
   // things". They close the detail modal first (if open) before navigating,
   // and stop the click from bubbling up to a surrounding card.
+  // Photo lightbox inside the event pop-out (only real-photo items carry .lb-open).
+  const lbPhoto = e.target.closest(".lb-open");
+  if(lbPhoto){ e.stopPropagation(); openLightbox(lbPhoto.dataset.photo); return; }
+
   const pill = e.target.closest("[data-person]");
   if(pill){ e.stopPropagation(); closeModal(); showProfile(pill.dataset.person); return; }
 
@@ -1794,7 +1837,8 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "backToPeople"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; return; }
   if(e.target.id === "backToLocations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; setTimeout(renderMap, 60); return; }
-  if(e.target.dataset.close){ if(e.target.dataset.close==="modalOverlay") closeModal(); else $(e.target.dataset.close).classList.remove("open"); return; }
+  if(e.target.dataset.close){ if(e.target.dataset.close==="modalOverlay") closeModal(); else if(e.target.dataset.close==="imgLightbox") closeLightbox(); else $(e.target.dataset.close).classList.remove("open"); return; }
+  if(e.target.id === "imgLightbox"){ closeLightbox(); return; }   // backdrop click
   if(e.target.id === "modalOverlay"){ closeModal(); return; }
   if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
   if(e.target.id === "submitBtn" || e.target.id === "footerSubmit"){ e.preventDefault(); const u = storySubmitUrl(); if(/^https?:\/\//i.test(u)) window.open(u, "_blank"); else window.location.href = u; return; }
@@ -1809,7 +1853,10 @@ $("searchBox").addEventListener("input", e => { filters.search = e.target.value;
 $("locationFilter").addEventListener("change", e => { filters.location = e.target.value; renderGallery(); });
 $("personFilter").addEventListener("change", e => { filters.person = e.target.value; renderGallery(); });
 document.addEventListener("keydown", e => {
-  if(e.key === "Escape"){ closeModal(); $("settingsOverlay").classList.remove("open"); }
+  if(e.key === "Escape"){
+    if($("imgLightbox").classList.contains("open")){ closeLightbox(); return; }   // lightbox first, pop-out stays open
+    closeModal(); $("settingsOverlay").classList.remove("open");
+  }
 });
 
 /* Drag-to-scroll on the timeline */
