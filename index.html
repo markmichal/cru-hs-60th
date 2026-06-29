@@ -239,38 +239,32 @@
     font-size: 1.25rem; padding-left: 4px; pointer-events: none; transition: background 0.15s;
   }
   .g-card:hover .play-badge { background: var(--vermilion); }
-  /* ---- Event grouping cards: stacked "deck" + rotating photos (Phase 3) ---- */
+  /* ---- Event grouping cards: bold stack + gold count pill + rotating photos ---- */
+  /* gold pill with a small stacked-layers icon */
   .event-count {
-    position: absolute; top: 8px; right: 8px; z-index: 2; background: var(--black); color: #fff;
+    position: absolute; top: 8px; right: 8px; z-index: 2; display: inline-flex; align-items: center; gap: 4px;
+    background: var(--yellow); color: var(--graphite);
     font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.72rem; letter-spacing: 0.03em;
-    padding: 3px 8px; border-radius: 12px; pointer-events: none;
+    padding: 3px 9px; border-radius: 999px; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.20);
   }
+  .event-count .stack-ic { display: block; flex: none; }
   /* rotating photo deck — crossfade between the group's photos (height from context) */
   .ev-deck { position: relative; overflow: hidden; background: linear-gradient(135deg, var(--soft), var(--gray)); }
   .ev-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.7s ease; }
   .ev-photo.active { opacity: 1; }
-  .g-card.is-event .ev-deck { height: 165px; }
-  /* deck edges peeking behind the front card (box-shadow is NOT clipped by overflow:hidden) */
-  .g-card.is-event {
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06),
-      5px 5px 0 -1px var(--card), 5px 5px 0 0 var(--card-border),
-      10px 10px 0 -1px var(--card), 10px 10px 0 0 var(--card-border);
+  .g-card.is-event .ev-deck { height: 165px; border-radius: 4px 4px 0 0; }
+  /* deck = real layer elements peeking down-and-right behind the front card.
+     The front card stays overflow:visible so the layers show; layers sit behind
+     (z-index:-1) and never catch clicks (pointer-events:none). */
+  .g-card.is-event, .t-event.is-event .t-card { overflow: visible; }
+  .ev-layer {
+    position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: var(--card); border: 1px solid var(--graphite); border-radius: 4px;
   }
-  .g-card.is-event:hover {
-    box-shadow: 0 8px 22px rgba(0,0,0,0.10),
-      5px 5px 0 -1px var(--card), 5px 5px 0 0 var(--card-border),
-      10px 10px 0 -1px var(--card), 10px 10px 0 0 var(--card-border);
-  }
-  .t-event.is-event .t-card {
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06),
-      4px 4px 0 -1px var(--card), 4px 4px 0 0 var(--card-border),
-      8px 8px 0 -1px var(--card), 8px 8px 0 0 var(--card-border);
-  }
-  .t-event.is-event .t-card:hover {
-    box-shadow: 0 6px 18px rgba(0,0,0,0.10),
-      4px 4px 0 -1px var(--card), 4px 4px 0 0 var(--card-border),
-      8px 8px 0 -1px var(--card), 8px 8px 0 0 var(--card-border);
-  }
+  .g-card.is-event .ev-layer-1 { transform: translate(7px, 7px); }
+  .g-card.is-event .ev-layer-2 { transform: translate(14px, 14px); }
+  .t-event.is-event .t-card .ev-layer-1 { transform: translate(4px, 4px); }
+  .t-event.is-event .t-card .ev-layer-2 { transform: translate(8px, 8px); }
   .g-card .no-img { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--soft), var(--gray)); font-family: 'Sora', sans-serif; font-weight: 800; font-size: 2rem; color: var(--graphite); }
   .g-body { padding: 13px 14px 15px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
   .g-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 0.72rem; }
@@ -965,7 +959,8 @@ function timelineEventHTML(g){
   return `
     <div class="t-event is-event">
       <div class="t-card" data-event="${esc(g.event)}">
-        <div class="t-thumb ev-deck">${eventDeckLayers(g)}<span class="event-count">${g.items.length} items</span></div>
+        ${EVENT_DECK_LAYERS}
+        <div class="t-thumb ev-deck">${eventDeckLayers(g)}${eventCountBadge(g.items.length)}</div>
         <div class="t-year">${g.year || ""}</div>
         <h4>${esc(g.event)}</h4>
       </div>
@@ -1039,6 +1034,14 @@ function eventPhotos(g){
   }).filter(Boolean);
 }
 
+// The two card-edge layers that sit behind the front card (CSS offsets them
+// down-and-right). pointer-events:none in CSS so they never catch the click.
+const EVENT_DECK_LAYERS = `<div class="ev-layer ev-layer-2"></div><div class="ev-layer ev-layer-1"></div>`;
+// Gold count pill with a small stacked-layers icon (inline SVG — the site has no
+// icon set). Icon strokes use currentColor so they match the pill's text color.
+function eventCountBadge(n){
+  return `<span class="event-count"><svg class="stack-ic" width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="2.6" y="5.4" width="9" height="8" rx="1.6"/><rect x="5.4" y="2.6" width="9" height="8" rx="1.6" fill="var(--yellow)"/></svg>${n} items</span>`;
+}
 // Stacked photo layers for an event deck — the first is active; a global ticker
 // crossfades them every ~2s (see startEventRotators). Crop-to-fill via object-fit.
 function eventDeckLayers(g){
@@ -1051,9 +1054,10 @@ function eventDeckLayers(g){
 function eventCardHTML(g){
   return `
   <div class="g-card is-event" data-event="${esc(g.event)}">
+    ${EVENT_DECK_LAYERS}
     <div class="g-media ev-deck">
       ${eventDeckLayers(g)}
-      <span class="event-count">${g.items.length} items</span>
+      ${eventCountBadge(g.items.length)}
     </div>
     <div class="g-body">
       <div class="g-meta">${g.year ? `<span class="tag year">${g.year}</span>` : ""}</div>
