@@ -30,16 +30,6 @@
  *   The site (index.html, intake.html, history-intake.html, share.html) all use
  *   that one URL — no other change needed.
  *
- *   >>> CHANGED 2026-06-29 — addStoryFromPublic now persists the public event
- *       picker: it reads story.event (sent by share.html) and writes it to the
- *       "Event" column on the Stories tab, located BY HEADER NAME (case-
- *       insensitive substring), the same resilient way the rest of the row is
- *       mapped. The column is NOT created here — if the hand-added "Event"
- *       header isn't present yet, the event is skipped and the rest of the
- *       submission still writes normally. A blank/missing event writes an empty
- *       cell, never an error. REQUIRES a NEW web-app version to take effect (and
- *       the "Event" column added by hand to the Stories tab).
- *
  *   >>> CHANGED 2026-06-27 — added the `vimeoThumb` action: a server-side Vimeo
  *       oEmbed proxy. Two uses: (a) share.html shows thumbnails for UNLISTED/
  *       PRIVATE Vimeo videos, and (b) the index.html story pop-out checks each
