@@ -378,7 +378,7 @@
   .ev-item-text .people-row { margin-top: 8px; }
   @media (max-width: 520px){ .ev-item { flex-direction: column; } .ev-item-photo { width: 100%; height: 180px; } }
   .ev-item-meta { margin: 2px 0 8px; }
-  .ev-item-photo.lb-open { cursor: zoom-in; }
+  .ev-item-photo.lb-open, .m-photo.lb-open { cursor: zoom-in; }
   /* Photo lightbox — a lightweight image overlay ABOVE the pop-out (z-index over the
      modal). Closing it returns to the pop-out untouched (scroll preserved). */
   .img-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 600; align-items: center; justify-content: center; flex-direction: column; gap: 14px; padding: 24px; }
@@ -1520,10 +1520,14 @@ function openModal(key){
   $("modalEvent").style.display = "none";        // single-item mode
   $("modalSingle").style.display = "";
   const img = $("modalImg");
+  img.classList.remove("lb-open"); delete img.dataset.photo;   // reset; only a real photo re-enables the lightbox
   if(renderModalVideo(d)){
     img.style.display = "none";                          // the video area owns the visual
+  } else if(d.photo){
+    img.src = driveImg(d.photo); img.style.display = "block";
+    img.classList.add("lb-open"); img.dataset.photo = d.photo;  // click → existing #imgLightbox (same gating as the pop-out)
   } else {
-    if(d.photo){ img.src = driveImg(d.photo); img.style.display = "block"; } else img.style.display = "none";
+    img.style.display = "none";
   }
   $("modalMeta").innerHTML =
     (d.year ? `<button class="tag year link-year" data-year="${d.year}">${d.year}</button>` : "") +
