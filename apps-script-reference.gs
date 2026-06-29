@@ -30,6 +30,16 @@
  *   The site (index.html, intake.html, history-intake.html, share.html) all use
  *   that one URL — no other change needed.
  *
+ *   >>> CHANGED 2026-06-29 — addStoryFromPublic now persists the public event
+ *       picker: it reads story.event (sent by share.html) and writes it to the
+ *       "Event" column on the Stories tab, located BY HEADER NAME (case-
+ *       insensitive substring), the same resilient way the rest of the row is
+ *       mapped. The column is NOT created here — if the hand-added "Event"
+ *       header isn't present yet, the event is skipped and the rest of the
+ *       submission still writes normally. A blank/missing event writes an empty
+ *       cell, never an error. REQUIRES a NEW web-app version to take effect (and
+ *       the "Event" column added by hand to the Stories tab).
+ *
  *   >>> CHANGED 2026-06-27 — added the `vimeoThumb` action: a server-side Vimeo
  *       oEmbed proxy. Two uses: (a) share.html shows thumbnails for UNLISTED/
  *       PRIVATE Vimeo videos, and (b) the index.html story pop-out checks each
@@ -558,6 +568,10 @@ function handleAddStoryFromPublic(body){
   var cApproved = M.ensureCol("approved",     "Approved");
   var cTimeline = M.ensureCol("timeline",     "On Timeline");
   var cFeatured = M.ensureCol("featured",     "Featured");
+  // Event grouping (additive): located BY HEADER NAME, never created here. If the
+  // hand-added "Event" column isn't present yet, colOf returns -1 and put() below
+  // skips it — the rest of the submission still writes normally.
+  var cEvent    = M.colOf("event");
   // The submitter's NAME goes in the form's existing "Your name" column, and the
   // SERVER-SIDE timestamp goes in the form's existing "Timestamp" column. We no
   // longer write separate "Submitted By"/"Submitted At" columns here — those
@@ -581,6 +595,7 @@ function handleAddStoryFromPublic(body){
   put(cLoc,      clean(s.location));
   put(cPeople,   clean(s.people));
   put(cStory,    clean(s.story));
+  put(cEvent,    clean(s.event));                 // "" when blank/missing; skipped if no Event column (cEvent < 0)
   put(cApproved, "FALSE");                        // reviewer approves before it shows
   put(cTimeline, "FALSE");
   put(cFeatured, "FALSE");
