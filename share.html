@@ -344,6 +344,11 @@
         <select id="pvType"><option>Photo</option><option>Flyer</option><option>Story</option><option>Video</option></select>
         <div class="hint">We set this automatically from what you added — change it if needed.</div>
       </div>
+      <div class="field full"><label for="pvEvent">Part of an event? (optional)</label>
+        <select id="pvEvent"><option value="">— Not part of an event —</option><option value="__new__">+ Suggest a new event…</option></select>
+        <input type="text" id="pvEventNew" placeholder="Name the event (e.g. EXPLO '72)" style="display:none; margin-top:8px;">
+        <div class="hint">Groups this with related photos and stories from the same event.</div>
+      </div>
       <div class="field full"><label for="pvStory">The story</label><textarea id="pvStory"></textarea></div>
     </div>
     <div class="tbl-actions">
@@ -394,6 +399,8 @@ const CONFIG = {
   SHEET_ID:   "1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE",
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
   SETTINGS_TAB: "Site Settings",
+  MASTER_TAB: "Cru HS 60th Anniversary Timeline (master)",  // for the event picker (read-only, gviz)
+  FORM_TAB: "Stories",                                      // for the event picker (read-only, gviz)
   TEXT_CAP: 6000,        // friendly cap on pasted/spoken text length
   MAX_FILE_MB: 20        // friendly cap on uploaded file size
 };
@@ -550,6 +557,56 @@ async function loadWelcomeBar(){
   }catch(e){ /* settings unreachable → just keep the bar hidden */ }
 }
 loadWelcomeBar();
+
+/* =====================================================================
+   Event picker — existing event names come from the DISTINCT, non-blank
+   Event values across BOTH content tabs (master timeline + Stories), read
+   live via gviz (read-only; no Apps Script change). The team can create an
+   event on the master, and a public submitter can join it. If the fetch
+   fails, the picker still works via the "Suggest a new event" free-text path.
+===================================================================== */
+async function fetchEventNames(){
+  const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
+  const seen = new Map();   // lowercased -> first-seen original casing (team normalizes spelling)
+  for(const tab of [CONFIG.MASTER_TAB, CONFIG.FORM_TAB]){
+    try{
+      const txt = await (await fetch(`${base}&sheet=${encodeURIComponent(tab)}`)).text();
+      const json = parseGviz(txt);
+      if(!json.table) continue;
+      const cols = json.table.cols.map(c => (c.label||"").toLowerCase().trim());
+      const ci = cols.findIndex(c => c.includes("event"));   // by header label, like index.html
+      if(ci < 0) continue;
+      json.table.rows.forEach(r => {
+        const v = (r.c && r.c[ci] && r.c[ci].v != null) ? String(r.c[ci].v).trim() : "";
+        if(v && !seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v);
+      });
+    }catch(e){ /* tolerate a missing/erroring tab — picker still has the free-text path */ }
+  }
+  return [...seen.values()].sort((a,b) => a.localeCompare(b));
+}
+async function loadEventOptions(){
+  let events = [];
+  try{ events = await fetchEventNames(); }catch(e){ events = []; }
+  const sel = $("pvEvent");
+  if(!sel) return;
+  sel.innerHTML =
+    `<option value="">— Not part of an event —</option>` +
+    events.map(e => `<option value="${attr(e)}">${attr(e)}</option>`).join("") +
+    `<option value="__new__">+ Suggest a new event…</option>`;
+}
+// The chosen event string: an existing name, a typed new name, or "" (none).
+function selectedEvent(){
+  const sel = $("pvEvent");
+  if(!sel) return "";
+  if(sel.value === "__new__") return $("pvEventNew").value.trim();
+  return sel.value;
+}
+$("pvEvent").addEventListener("change", () => {
+  const isNew = $("pvEvent").value === "__new__";
+  $("pvEventNew").style.display = isNew ? "block" : "none";
+  if(isNew) $("pvEventNew").focus();
+});
+loadEventOptions();
 
 /* ---------- Lightbox ---------- */
 function openVideo(){
@@ -919,6 +976,7 @@ $("finalSubmitBtn").addEventListener("click", async () => {
     location: $("pvLocation").value.trim(),
     people:   $("pvPeople").value.trim(),
     type:     $("pvType").value,              // auto-assigned default, but submitter can override
+    event:    selectedEvent(),                // ignored by the server until doPost is updated (manual step 3)
     story:    $("pvStory").value.trim()
   };
   if(!story.title){ $("finalMsg").className = "msg error"; showMsg("finalMsg","Please give your story a short title."); $("pvTitle").focus(); return; }
@@ -968,6 +1026,7 @@ $("shareAnotherBtn").addEventListener("click", () => {
   nudgeAcked = false; $("nudge").style.display = "none";
   hideMsg("storyMsg"); hideMsg("mediaMsg"); hideMsg("finalMsg");
   ["pvTitle","pvYear","pvLocation","pvPeople","pvStory"].forEach(id => $(id).value = "");
+  $("pvEvent").value = ""; $("pvEventNew").value = ""; $("pvEventNew").style.display = "none";   // reset event picker
   refreshAutoType();             // back to "Story" — renderMediaState above already cleared media
   resetEncourage();
   $("finalSubmitBtn").textContent = "Share my story";
