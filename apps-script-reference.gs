@@ -273,7 +273,7 @@ function handleAddStints(body){
     put(cEnd,      s.endYear   || "");
     put(cRole,     String(s.role  || "").trim());
     put(cNotes,    String(s.notes || "").trim());
-    put(cApproved, "FALSE");               // reviewer turns this on
+    put(cApproved, false);                 // boolean false → unchecked checkbox; reviewer turns this on
     put(cSubBy,    submittedBy);
     put(cSubAt,    now);
     rows.push(row);
@@ -453,7 +453,7 @@ function handleAddServiceFromPublic(body){
     put(cPerson,   name);                       // Person Name = the submitter
     put(cLoc, loc); put(cStart, sy); put(cEnd, ey); put(cRole, role);
     put(cNotes,    "");
-    put(cApproved, "FALSE");
+    put(cApproved, false);               // boolean false → unchecked checkbox; reviewer turns this on
     put(cSubBy,    name);
     put(cSubAt,    now);
     rows.push(row);
