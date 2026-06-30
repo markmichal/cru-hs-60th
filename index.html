@@ -221,6 +221,11 @@
   .chip.active { background: var(--turquoise); border-color: var(--turquoise); color: var(--white); }
   .clear-filters { background: none; border: none; color: var(--graphite); font-size: 0.8rem; text-decoration: underline; margin-left: auto; }
   .result-count { color: var(--graphite); font-size: 0.85rem; padding-bottom: 14px; }
+  /* Search inputs on the People and Locations tabs — same appearance as the gallery filter input. */
+  .tab-search { display: block; width: 100%; margin-top: 20px;
+    background: var(--white); border: 1px solid var(--gray); color: var(--black);
+    border-radius: 3px; padding: 10px 12px; font-family: 'Inter', sans-serif; font-size: 0.88rem; }
+  .tab-search:focus { outline: 2px solid var(--yellow); outline-offset: 1px; }
 
   /* ============ GALLERY GRID ============ */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
@@ -527,7 +532,10 @@
 
   <!-- PEOPLE VIEW -->
   <section class="view" id="view-people">
-    <div id="peopleIndex"><div class="people-grid" id="peopleGrid"></div></div>
+    <div id="peopleIndex">
+      <input type="search" id="peopleSearch" class="tab-search" placeholder="Search people&hellip;" aria-label="Search people">
+      <div class="people-grid" id="peopleGrid"></div>
+    </div>
     <div id="personProfile" style="display:none">
       <button class="back-link" id="backToPeople">&larr; All people</button>
       <div class="profile-head">
@@ -547,6 +555,7 @@
     <div id="locationsIndex">
       <div id="mapEl"></div>
       <div class="map-hint">Zoom and click a pin on the map, or pick a city from the cards below</div>
+      <input type="search" id="locationSearch" class="tab-search" placeholder="Search locations&hellip;" aria-label="Search locations">
       <div class="loc-grid" id="locationsGrid" style="padding-top:20px"></div>
       <div class="empty-state" id="locationsEmpty" style="display:none">
         <div class="big">No locations yet</div>
@@ -712,7 +721,7 @@ const SETTINGS_SCHEMA = [
 let DATA = [];
 let STINTS = [];            // staff-service rows (one per person/place/timespan)
 let SETTINGS = {};          // values loaded from the Site Settings tab
-let filters = { search:"", decade:"", location:"", person:"", type:"" };
+let filters = { search:"", decade:"", location:"", person:"", type:"", peopleQ:"", locationQ:"" };
 let currentEra = null;
 let editing = false;
 let HERO = [];              // photos tagged "Featured" for the hero carousel
@@ -1217,7 +1226,9 @@ function renderPeople(){
     if(s.location) map[s.person].locs.add(s.location);
   });
   const names = Object.keys(map).sort();
-  $("peopleGrid").innerHTML = names.length ? names.map(n => {
+  const pq = filters.peopleQ.toLowerCase();
+  const visiblePeople = pq ? names.filter(n => n.toLowerCase().includes(pq)) : names;
+  $("peopleGrid").innerHTML = visiblePeople.length ? visiblePeople.map(n => {
     const m = map[n];
     const bits = [];
     if(m.items) bits.push(`${m.items} item${m.items===1?"":"s"}`);
@@ -1228,7 +1239,9 @@ function renderPeople(){
       <h4>${esc(n)}</h4>
       <div class="p-stats">${bits.join(" · ") || "Profile"}</div>
     </button>`; }).join("")
-    : `<div class="empty-state"><div class="big">No people yet</div><div>People appear here once submissions include names or staff service records are added.</div></div>`;
+    : names.length
+      ? `<div class="empty-state"><div class="big">No results</div><div>Try a different search.</div></div>`
+      : `<div class="empty-state"><div class="big">No people yet</div><div>People appear here once submissions include names or staff service records are added.</div></div>`;
 }
 
 function journeyHTML(name){
@@ -1263,9 +1276,14 @@ function showProfile(name){
 
 /* ============ RENDER: LOCATIONS ============ */
 function renderLocations(){
-  const names = locationNames();
+  const allLocNames = locationNames();
+  const lq = filters.locationQ.toLowerCase();
+  const names = lq ? allLocNames.filter(n => n.toLowerCase().includes(lq)) : allLocNames;
   if(!names.length){
     $("locationsGrid").innerHTML = "";
+    $("locationsEmpty").innerHTML = allLocNames.length && lq
+      ? `<div class="big">No results</div><div>Try a different search.</div>`
+      : `<div class="big">No locations yet</div><div>Locations appear here once staff service records or tagged photos include a place.</div>`;
     $("locationsEmpty").style.display = "block";
     return;
   }
@@ -1856,6 +1874,8 @@ document.addEventListener("click", e => {
 $("searchBox").addEventListener("input", e => { filters.search = e.target.value; renderGallery(); });
 $("locationFilter").addEventListener("change", e => { filters.location = e.target.value; renderGallery(); });
 $("personFilter").addEventListener("change", e => { filters.person = e.target.value; renderGallery(); });
+$("peopleSearch").addEventListener("input", e => { filters.peopleQ = e.target.value; renderPeople(); });
+$("locationSearch").addEventListener("input", e => { filters.locationQ = e.target.value; renderLocations(); });
 document.addEventListener("keydown", e => {
   if(e.key === "Escape"){
     if($("imgLightbox").classList.contains("open")){ closeLightbox(); return; }   // lightbox first, pop-out stays open
