@@ -38,6 +38,15 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 - Content changes need no code: edit the spreadsheet, check Approved, refresh the site.
 - The Apps Script source also lives in this repo as reference (`Code.gs` if present), but the live copy runs inside the Google Sheet (Extensions → Apps Script). Changing the live script requires re-deploying the Web App (Manage deployments → new version).
 
+## Two-Machine Rules
+
+- Repos must live in a plain local folder, never inside a Google Drive-synced folder — Drive can corrupt `.git` with conflict-copy files.
+- Both repos currently live at `/Users/markmichal/MY DOCUMENTS/Projects/`.
+- Run `git pull` at the start of every session, on whichever machine you're on.
+- Commit and push before stopping so the other machine can pick up current work.
+- `.env` and `.claude/` must always be in `.gitignore` and must never be committed.
+- Each machine needs `git config --global user.name` and `user.email` set to `Mark Michal` / `mark.michal@cru.org` so commits attribute correctly.
+
 ## Staff Service & Locations (next feature — see FEATURE-staff-locations.md)
 
 A new tab `Staff Service` records where staff served, one row per STINT (one person, one place, one time span). Columns: `Person Name | Location | Start Year | End Year | Role | Notes | Approved | Submitted By | Submitted At` (last two are internal provenance from the intake page — never displayed on the site). A person with three cities = three rows. The site aggregates: rows grouped by Person Name = that person's journey in chronological order; grouped by Location = that location's staff roster across eras. Years are stored as facts; eras are derived for display (decades now, CONFIG.ERAS later), same as the timeline. All fields except Person Name are optional — data will always be incomplete and that's fine; render what exists. Name consistency is enforced by human reviewers before approving rows, not by the system. Only Approved=TRUE rows appear on the site.

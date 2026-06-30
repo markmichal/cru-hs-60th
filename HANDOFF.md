@@ -17,6 +17,15 @@
 > **Rename (2026-06-27): "High School History" → "High School Legacy" + new domain.** Code changes are done (CNAME, og/twitter/title meta, header `<h1>` default). **No Apps Script change, no redeploy.** Two owner actions OUTSIDE the repo: (1) **DNS** — point `highschoollegacy.crutastic.com` at GitHub Pages and set it as the custom domain in repo Settings → Pages (the old `highschoolhistory` host stops resolving once DNS moves). (2) **Hidden editor (PIN 6060)** — if a saved `headerTitle` exists in Site Settings it OVERRIDES the HTML default, so update it to "Cru High School Legacy" there or the header may still read "History". See "2026-06-27 — rename to High School Legacy".
 > Prior state (still true): the owner did the `Form Responses 2` → `Stories` tab rename and the Stage 1.2 / 1.3 / structural-pass redeploys, so those server changes are live.
 
+## Two-Machine Rules
+
+- Repos must live in a plain local folder, never inside a Google Drive-synced folder — Drive can corrupt `.git` with conflict-copy files.
+- Both repos currently live at `/Users/markmichal/MY DOCUMENTS/Projects/`.
+- Run `git pull` at the start of every session, on whichever machine you're on.
+- Commit and push before stopping so the other machine can pick up current work.
+- `.env` and `.claude/` must always be in `.gitignore` and must never be committed.
+- Each machine needs `git config --global user.name` and `user.email` set to `Mark Michal` / `mark.michal@cru.org` so commits attribute correctly.
+
 ## 2026-06-29 — Events Grouping (SHIPPED)
 The full Events Grouping feature is live: front-end in `index.html` + `share.html`, plus one Apps Script change that the owner pasted and **redeployed**. Items that share an `Event` tag collapse into one rich event card/pop-out across the whole site. **No owner action remaining for this feature.**
 
