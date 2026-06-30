@@ -301,6 +301,8 @@
   .link-loc { background: none; border: none; padding: 0; color: var(--turquoise); font-weight: 600; font-size: 0.8rem; text-align: left; }
   .link-loc:hover { text-decoration: underline; }
   .g-body .loc.link-loc { color: var(--turquoise); }
+  /* Description snippet on gallery event cards — same text style as .t-card p. */
+  .g-body .ev-desc { font-size: 0.8rem; color: var(--graphite); line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--graphite); }
   .empty-state .big { font-family: 'Sora', sans-serif; font-size: 1.2rem; font-weight: 700; color: var(--black); margin-bottom: 8px; }
 
@@ -1024,6 +1026,7 @@ function timelineItemHTML(e){
 // Timeline event card: same deck treatment as the gallery — stacked look (CSS),
 // rotating photo thumb, count badge, face text = event name + year + count.
 function timelineEventHTML(g){
+  const snippet = eventSnippet(g);
   return `
     <div class="t-event is-event">
       <div class="ev-stack" data-event="${esc(g.event)}">
@@ -1032,6 +1035,7 @@ function timelineEventHTML(g){
           <div class="t-thumb ev-deck">${eventDeckLayers(g)}${eventCountBadge(g.items.length)}</div>
           <div class="t-year">${g.year || ""}</div>
           <h4>${esc(g.event)}</h4>
+          ${snippet ? `<p>${esc(snippet)}</p>` : ""}
         </div>
       </div>
       <div class="dot"></div>
@@ -1107,6 +1111,14 @@ function eventPhotos(g){
 // The two card-edge layers that sit behind the front card (CSS offsets them
 // down-and-right). pointer-events:none in CSS so they never catch the click.
 const EVENT_DECK_LAYERS = `<div class="ev-layer ev-layer-2"></div><div class="ev-layer ev-layer-1"></div>`;
+// Pick a representative description for a collapsed event card face.
+// Prefers a Featured item's story; falls back to the earliest-year item's story.
+// CSS handles the line-clamp truncation, matching the single-card treatment.
+function eventSnippet(g){
+  const src = g.items.find(it => it.featured)
+    || g.items.reduce((a, b) => ((a.year||Infinity) <= (b.year||Infinity) ? a : b));
+  return (src && src.story) ? src.story.trim() : "";
+}
 // Gold count pill with a small stacked-layers icon (inline SVG — the site has no
 // icon set). Icon strokes use currentColor so they match the pill's text color.
 function eventCountBadge(n){
@@ -1124,6 +1136,7 @@ function eventDeckLayers(g){
 // badge, face text = event name + year + count. data-event (on the wrapper) keys
 // the pop-out.
 function eventCardHTML(g){
+  const snippet = eventSnippet(g);
   return `
   <div class="ev-stack" data-event="${esc(g.event)}">
     ${EVENT_DECK_LAYERS}
@@ -1135,6 +1148,7 @@ function eventCardHTML(g){
       <div class="g-body">
         <div class="g-meta">${g.year ? `<span class="tag year">${g.year}</span>` : ""}</div>
         <h4>${esc(g.event)}</h4>
+        ${snippet ? `<p class="ev-desc">${esc(snippet)}</p>` : ""}
       </div>
     </div>
   </div>`;
