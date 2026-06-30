@@ -302,7 +302,8 @@ function handleParseHistory(body){
  * Inserts one row per event at the TOP of the master timeline tab (just under
  * the header, newest first), matching whatever columns already exist there by
  * case-insensitive substring on the header (never by position). Approved is
- * forced to the literal "FALSE"; Submitted By / Submitted At are written as
+ * written as boolean false (so a checkbox cell renders unchecked and conditional
+ * formatting on boolean FALSE fires). Submitted By / Submitted At are written as
  * internal provenance (the site ignores unrecognized columns). If the master
  * tab is missing the Approved / Submitted By / Submitted At columns, they are
  * created at the end so nothing is lost.
@@ -349,7 +350,7 @@ function handleAddHistoryEvents(body){
     put(cStory,    clean(e.story));
     put(cTimeline, boolStr_(truthy(e.onTimeline)));
     if(cFeatured >= 0) put(cFeatured, "FALSE");
-    put(cApproved, "FALSE");                         // never auto-approve
+    put(cApproved, false);                           // boolean false → unchecked checkbox; never auto-approve
     put(cSubBy,    submittedBy);
     put(cSubAt,    now);
     rows.push(row);
@@ -526,8 +527,10 @@ function handleParseStoryText(body){
  * Matches existing columns by case-insensitive substring (never by position);
  * creates any it needs at the far right. A photo/flyer link goes in the Photo
  * column; a video link goes in the Video column AND gets a "Watch the video"
- * button so the site embeds a player. Approved / On Timeline / Featured are
- * forced to the literal "FALSE". The row is inserted at row 2 (newest first). */
+ * button so the site embeds a player. Approved is written as boolean false (so a
+ * checkbox renders unchecked); On Timeline and Featured are written as "FALSE"
+ * strings (they work correctly because those columns already have checkbox
+ * validation that coerces the string). The row is inserted at row 2 (newest first). */
 function handleAddStoryFromPublic(body){
   const name  = String(body.submittedBy || "").trim();
   const s     = body.story || {};
@@ -586,7 +589,7 @@ function handleAddStoryFromPublic(body){
   put(cPeople,   clean(s.people));
   put(cStory,    clean(s.story));
   put(cEvent,    clean(s.event));                 // "" when blank/missing; skipped if no Event column (cEvent < 0)
-  put(cApproved, "FALSE");                        // reviewer approves before it shows
+  put(cApproved, false);                           // boolean false → unchecked checkbox; reviewer approves before it shows
   put(cTimeline, "FALSE");
   put(cFeatured, "FALSE");
   var now = new Date();                          // server-side — never trust the client
