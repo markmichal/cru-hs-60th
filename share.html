@@ -88,6 +88,7 @@
     border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
     color:var(--turquoise); font-family:'Sora',sans-serif; font-weight:800; font-size:1.15rem; padding:18px;}
   .upload-btn .ic{font-size:2.4rem; line-height:1;}
+  .upload-btn .ic svg{width:2.4rem; height:2.4rem; display:block; fill:currentColor;}
   .upload-btn .small{font-family:'Inter',sans-serif; font-weight:600; font-size:.92rem; color:var(--graphite);}
   .link-box{flex:1; min-width:230px; display:flex; flex-direction:column; justify-content:center;}
   .link-box .or{font-family:'Sora',sans-serif; font-weight:800; color:var(--graphite); font-size:.9rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;}
@@ -115,6 +116,7 @@
     color:var(--turquoise); border-radius:30px; padding:11px 20px; font-family:'Sora',sans-serif; font-weight:800;
     font-size:1rem; margin-top:12px; min-height:auto;}
   .mic-btn.rec{background:var(--vermilion); border-color:var(--vermilion); color:#fff; animation:pulse 1.2s ease-in-out infinite;}
+  .mic-btn svg{width:1.2rem; height:1.2rem; fill:currentColor; flex:0 0 auto;}
   @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.7;}}
 
   /* ---------- Editable story preview ---------- */
@@ -222,7 +224,7 @@
         <div class="field">
           <label for="serviceText">Where and when did you serve?</label>
           <textarea id="serviceText" placeholder="Example: I was on staff in Tulsa from about 1985 to 1990, then in Denver until 1996."></textarea>
-          <button type="button" class="mic-btn" data-mic="serviceText">🎤 Speak instead</button>
+          <button type="button" class="mic-btn" data-mic="serviceText"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg> Speak instead</button>
         </div>
 
         <button class="btn" id="mapBtn">Continue</button>
@@ -260,7 +262,7 @@
       <div class="upload-box media-col" id="uploadBox">
         <input type="file" id="fileInput" accept="image/*,video/*,application/pdf,.pdf" style="display:none">
         <button class="upload-btn" id="uploadBtn">
-          <span class="ic">📷</span>
+          <span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.2c1.77 0 3.2-1.43 3.2-3.2s-1.43-3.2-3.2-3.2-3.2 1.43-3.2 3.2 1.43 3.2 3.2 3.2zM9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg></span>
           <span>Add a Photo</span>
           <span class="small">or a flyer or short video clip — tap to choose</span>
         </button>
@@ -302,7 +304,7 @@
     <div class="field story-wrap">
       <label for="storyText">Your story</label>
       <textarea id="storyText" placeholder="Tell us about a moment that mattered…"></textarea>
-      <button type="button" class="mic-btn" data-mic="storyText">🎤 Speak instead</button>
+      <button type="button" class="mic-btn" data-mic="storyText"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg> Speak instead</button>
     </div>
 
     <button class="btn big dark" id="shareBtn">Share this story</button>
@@ -650,6 +652,8 @@ $("confirmHomeGo").addEventListener("click", () => { window.location.href = "ind
    Microphone (Web Speech API) — only shown where the browser supports it
 ===================================================================== */
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Google Material "mic" icon — reused when resetting the button after recording.
+const MIC_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>';
 function setupMics(){
   document.querySelectorAll("[data-mic]").forEach(btn => {
     if(!SpeechRec){ btn.style.display = "none"; return; }   // hide where unsupported
@@ -670,7 +674,7 @@ function setupMics(){
         ta.value = base + (interim ? " " + interim : "");
         autoGrow(ta);
       };
-      const stop = () => { on = false; btn.classList.remove("rec"); btn.textContent = "🎤 Speak instead"; };
+      const stop = () => { on = false; btn.classList.remove("rec"); btn.innerHTML = MIC_SVG + " Speak instead"; };
       rec.onend = stop; rec.onerror = stop;
       try{ rec.start(); on = true; btn.classList.add("rec"); btn.textContent = "● Listening… tap to stop"; }
       catch(e){ stop(); }
