@@ -225,7 +225,7 @@
           <button type="button" class="mic-btn" data-mic="serviceText">🎤 Speak instead</button>
         </div>
 
-        <button class="btn" id="mapBtn">Map my journey</button>
+        <button class="btn" id="mapBtn">Continue</button>
         <div class="msg error" id="serviceMsg"></div>
       </div>
 
@@ -254,6 +254,7 @@
   <div class="card" id="mediaCard">
     <h2>Share a photo, flyer, or video</h2>
     <p class="lead">Got an old photo, a camp flyer, or a video clip? Add it here. This is the heart of your story.</p>
+    <p class="dim-note" style="margin-top:-4px">Best to add it now. A story can't be edited once you've submitted it, so there's no adding a photo later.</p>
 
     <div class="media-grid">
       <div class="upload-box media-col" id="uploadBox">
@@ -351,6 +352,9 @@
       </div>
       <div class="field full"><label for="pvStory">The story</label><textarea id="pvStory"></textarea></div>
     </div>
+    <p class="dim-note" style="margin:4px 0 12px; padding:10px 14px; background:#fff8e6; border:1px solid #f0dfa8; border-radius:10px; color:#6b5a1e;">
+      Please add your photo and check everything now. Once you share your story it goes to our team for review and can't be edited, so this is the time to include a picture if you have one.
+    </p>
     <div class="tbl-actions">
       <button class="btn ghost" id="backBtn">Back</button>
       <button class="btn dark" id="finalSubmitBtn">Share my story</button>
@@ -566,7 +570,9 @@ loadWelcomeBar();
    fails, the picker still works via the "Suggest a new event" free-text path.
 ===================================================================== */
 async function fetchEventNames(){
-  const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
+  // Cache-buster (_cb) so a just-suggested event shows up for the next person
+  // instead of the browser / gviz handing back a stale cached list.
+  const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1&_cb=${Date.now()}`;
   const seen = new Map();   // lowercased -> first-seen original casing (team normalizes spelling)
   for(const tab of [CONFIG.MASTER_TAB, CONFIG.FORM_TAB]){
     try{
@@ -589,10 +595,13 @@ async function loadEventOptions(){
   try{ events = await fetchEventNames(); }catch(e){ events = []; }
   const sel = $("pvEvent");
   if(!sel) return;
+  const prev = sel.value;   // keep whatever the person already picked across a refresh
   sel.innerHTML =
     `<option value="">— Not part of an event —</option>` +
     events.map(e => `<option value="${attr(e)}">${attr(e)}</option>`).join("") +
     `<option value="__new__">+ Suggest a new event…</option>`;
+  // Restore the prior choice if it's still a valid option (blank/new fall through fine).
+  if(prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
 // The chosen event string: an existing name, a typed new name, or "" (none).
 function selectedEvent(){
@@ -689,7 +698,7 @@ $("mapBtn").addEventListener("click", async () => {
   if(text.length > CONFIG.TEXT_CAP){ showMsg("serviceMsg","That's a lot of text — could you shorten it a little?"); return; }
 
   const btn = $("mapBtn");
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Mapping your journey…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Reading your journey…';
   try{
     const out = await postAction({ action:"parseServiceText", text });
     if(!out.ok) throw new Error(out.error || "Couldn't read that.");
@@ -697,7 +706,7 @@ $("mapBtn").addEventListener("click", async () => {
     if(!stints.length){ showMsg("serviceMsg","We couldn't pick out any places. Try naming a city and a year or two."); return; }
     renderStints(stints);
   }catch(err){ showMsg("serviceMsg", friendly(err.message)); }
-  finally{ btn.disabled = false; btn.textContent = "Map my journey"; }
+  finally{ btn.disabled = false; btn.textContent = "Continue"; }
 });
 
 const STINT_FIELDS = ["location","startYear","endYear","role"];
@@ -956,6 +965,7 @@ $("shareBtn").addEventListener("click", async () => {
     $("pvStory").value = f.story || story;   // Type is auto-assigned from media, not the AI parse
     resetEncourage();
     renderVerifyMedia();                       // show their photo/video atop the preview
+    loadEventOptions();                        // refresh event list so newly-suggested events appear (fire-and-forget)
     $("finalSubmitBtn").textContent = "Share my story";
     $("storyPreviewCard").style.display = "block";
     autoGrow($("pvStory"));
@@ -1027,6 +1037,7 @@ $("shareAnotherBtn").addEventListener("click", () => {
   hideMsg("storyMsg"); hideMsg("mediaMsg"); hideMsg("finalMsg");
   ["pvTitle","pvYear","pvLocation","pvPeople","pvStory"].forEach(id => $(id).value = "");
   $("pvEvent").value = ""; $("pvEventNew").value = ""; $("pvEventNew").style.display = "none";   // reset event picker
+  loadEventOptions();            // re-fetch so an event just added in this session is now selectable
   refreshAutoType();             // back to "Story" — renderMediaState above already cleared media
   resetEncourage();
   $("finalSubmitBtn").textContent = "Share my story";
