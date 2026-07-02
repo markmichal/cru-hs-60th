@@ -47,6 +47,27 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 - `.env` and `.claude/` must always be in `.gitignore` and must never be committed.
 - Each machine needs `git config --global user.name` and `user.email` set to `Mark Michal` / `mark.michal@cru.org` so commits attribute correctly.
 
+## Session Rhythm (automatic, every session)
+
+**START of every session:**
+1. Run `git pull`
+2. Read HANDOFF.md
+3. Summarize current state and open items in 2-3 sentences so Mark knows you're oriented
+
+Do this before anything else, without being asked.
+
+**END of every session:**
+1. Update HANDOFF.md with a dated entry covering:
+   - What was built or decided this session
+   - Any new parked items
+   - Current state of any open threads
+2. Commit and push the update
+3. Tell Mark "HANDOFF.md updated and pushed" so he knows it's done
+
+Do this before stopping, without being asked.
+
+**Why this matters:** Mark works across two machines and between Claude Code and Claude chat. HANDOFF.md is the shared source of truth that keeps both in sync. If it isn't updated, the other machine or the chat session starts blind.
+
 ## Staff Service & Locations (next feature — see FEATURE-staff-locations.md)
 
 A new tab `Staff Service` records where staff served, one row per STINT (one person, one place, one time span). Columns: `Person Name | Location | Start Year | End Year | Role | Notes | Approved | Submitted By | Submitted At` (last two are internal provenance from the intake page — never displayed on the site). A person with three cities = three rows. The site aggregates: rows grouped by Person Name = that person's journey in chronological order; grouped by Location = that location's staff roster across eras. Years are stored as facts; eras are derived for display (decades now, CONFIG.ERAS later), same as the timeline. All fields except Person Name are optional — data will always be incomplete and that's fine; render what exists. Name consistency is enforced by human reviewers before approving rows, not by the system. Only Approved=TRUE rows appear on the site.
