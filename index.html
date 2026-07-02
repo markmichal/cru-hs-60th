@@ -453,9 +453,31 @@
     * { transition: none !important; }
     html { scroll-behavior: auto; }
   }
+
+  /* Site password gate — shown before any content loads or any data is fetched */
+  .site-gate{position:fixed; inset:0; background:var(--soft); z-index:9999; display:flex; align-items:center; justify-content:center; padding:24px;}
+  .site-gate.hidden{display:none;}
+  .site-gate .gate-card{background:var(--white); border:1px solid var(--gray); border-radius:6px; padding:28px; max-width:380px; width:100%; text-align:center; box-shadow:0 1px 4px rgba(0,0,0,.06);}
+  .site-gate h2{font-family:'Sora',sans-serif; font-weight:800; font-size:1.3rem; letter-spacing:-.02em; margin-bottom:8px;}
+  .site-gate p{color:var(--graphite); font-size:.9rem; line-height:1.5; margin-bottom:16px;}
+  .site-gate input[type=password]{width:100%; background:var(--white); border:1px solid var(--gray); border-radius:4px; padding:11px 12px; font-family:'Inter',sans-serif; font-size:.95rem; color:var(--black); margin-bottom:14px; text-align:center;}
+  .site-gate input[type=password]:focus{outline:2px solid var(--yellow); outline-offset:1px;}
+  .site-gate button{width:100%; background:var(--yellow); color:var(--black); border:none; border-radius:4px; padding:12px 26px; font-family:'Sora',sans-serif; font-weight:800; font-size:.95rem; cursor:pointer;}
+  .site-gate .gate-msg{display:none; margin-top:12px; padding:10px 12px; border-radius:4px; font-size:.84rem; background:#fde8e0; border:1px solid var(--vermilion); color:var(--vermilion);}
 </style>
 </head>
 <body>
+
+<!-- Site password gate — nothing below loads or fetches data until this passes -->
+<div class="site-gate" id="siteGate">
+  <div class="gate-card">
+    <h2>Cru High School Legacy</h2>
+    <p>This site shares personal stories and history from our Cru community. Enter the password to continue.</p>
+    <input type="password" id="siteGatePin" placeholder="Password" autocomplete="off">
+    <button id="siteGateBtn">Enter</button>
+    <div class="gate-msg" id="siteGateMsg">That password didn't match. Try again.</div>
+  </div>
+</div>
 
 <div class="edit-banner">
   <span>✏️ Editing page text &amp; buttons — saves to the "Site Settings" tab of the Google Sheet. Timeline content is edited in the spreadsheet itself.</span>
@@ -673,6 +695,7 @@ const CONFIG = {
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
   EDIT_PIN: "6060",
   INTAKE_PIN: "1951",
+  SITE_PIN: "1967",   // password to view the site at all. Change it here AND at the top of the Apps Script (SITE_PIN).
   STAFF_TAB: "Staff Service",
   ERAS: [],
   MAX_TRACK: 20,
@@ -723,6 +746,7 @@ const SETTINGS_SCHEMA = [
 let DATA = [];
 let STINTS = [];            // staff-service rows (one per person/place/timespan)
 let SETTINGS = {};          // values loaded from the Site Settings tab
+let SITE_PIN_ENTERED = "";  // set once the visitor passes the site password gate; sent with every data request
 let filters = { search:"", decade:"", location:"", person:"", type:"", peopleQ:"", locationQ:"" };
 let currentEra = null;
 let editing = false;
@@ -888,9 +912,6 @@ function applySettings(){
 }
 
 /* ============ GOOGLE SHEET LOADER ============ */
-function parseGviz(txt){
-  return JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}")+1));
-}
 function rowsToItems(json){
   const cols = json.table.cols.map(c => (c.label||"").toLowerCase().trim());
   const idx = name => cols.findIndex(c => c.includes(name));
@@ -930,47 +951,41 @@ function rowsToItems(json){
 }
 
 async function loadData(){
-  const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
+  // Reads go through the Apps Script (getSiteData), not the Sheet directly —
+  // it runs with the site owner's own Google permission, so the Sheet itself
+  // can stay locked down to specific invited people. SITE_PIN_ENTERED is set
+  // once the visitor passes the password gate; the server checks it too.
   let items = [];
+  let data;
   try{
-    let txt = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.MASTER_TAB)}`)).text();
-    let json = parseGviz(txt);
-    if(!json.table){                                     // tab renamed? fall back to first tab
-      txt = await (await fetch(base)).text();
-      json = parseGviz(txt);
-    }
-    items = rowsToItems(json);
+    const res = await fetch(CONFIG.SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getSiteData", pin: SITE_PIN_ENTERED })
+    });
+    data = await res.json();
+    if(!data.ok) throw new Error(data.error || "Couldn't load site data.");
   }catch(e){
-    console.error("Could not load the master tab:", e);
-    $("dataStatus").textContent = "Couldn't reach the Google Sheet — check that it's shared 'Anyone with the link can view'";
+    console.error("Could not load site data:", e);
+    $("dataStatus").textContent = "Couldn't reach the server — try refreshing the page.";
     DATA = [];
     return;
   }
-  try{
-    const txt2 = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.FORM_TAB)}`)).text();
-    const json2 = parseGviz(txt2);
-    if(json2.table) items = items.concat(rowsToItems(json2));
-  }catch(e){ /* no form tab yet — fine */ }
+
+  items = rowsToItems({ table: data.master });
+  if(data.stories) items = items.concat(rowsToItems({ table: data.stories }));
 
   // Site Settings tab (key/value)
-  try{
-    const txt3 = await (await fetch(`${base}&sheet=${encodeURIComponent("Site Settings")}`)).text();
-    const json3 = parseGviz(txt3);
-    if(json3.table){
-      json3.table.rows.forEach(r => {
-        const k = r.c && r.c[0] ? String(r.c[0].v ?? "").trim() : "";
-        const v = r.c && r.c[1] ? String(r.c[1].v ?? "") : "";
-        if(k) SETTINGS[k] = v;
-      });
-    }
-  }catch(e){ /* no settings tab yet — defaults apply */ }
+  if(data.settings){
+    data.settings.rows.forEach(r => {
+      const k = r.c && r.c[0] ? String(r.c[0].v ?? "").trim() : "";
+      const v = r.c && r.c[1] ? String(r.c[1].v ?? "") : "";
+      if(k) SETTINGS[k] = v;
+    });
+  }
 
   // Staff Service tab (one row per stint). Tolerate it not existing yet.
-  try{
-    const txt4 = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.STAFF_TAB)}`)).text();
-    const json4 = parseGviz(txt4);
-    if(json4.table) STINTS = rowsToStints(json4);
-  }catch(e){ STINTS = []; /* no staff tab yet — fine */ }
+  STINTS = data.staffService ? rowsToStints({ table: data.staffService }) : [];
 
   DATA = items;
   $("dataStatus").textContent = `Live from Google Sheets — ${DATA.length} approved item${DATA.length===1?"":"s"}`;
@@ -1915,13 +1930,47 @@ document.addEventListener("keydown", e => {
 })();
 
 /* ============ INIT ============ */
-(async function init(){
+async function init(){
   loadGeoCache();
   settingDefaults();
   await loadData();
   applySettings();
   renderAll();
   startEventRotators();   // begin the ~2s event-deck photo rotation (DOM-driven, covers re-renders)
+}
+
+/* ---------- Site password gate ----------
+   Nothing above runs (no fetch, no render) until this passes. A quick
+   client-side check avoids a round-trip for an obviously-wrong guess, but
+   the Apps Script checks SITE_PIN again server-side — that's the real gate,
+   not this. Passing once is remembered for the rest of this browser tab's
+   session (sessionStorage), same pattern as the intake pages. */
+(function(){
+  const gate = $("siteGate");
+  const pinInput = $("siteGatePin");
+  const msg = $("siteGateMsg");
+  function unlock(pin){
+    SITE_PIN_ENTERED = pin;
+    gate.classList.add("hidden");
+    sessionStorage.setItem("sitePin", pin);
+    init();
+  }
+  function tryPin(){
+    const entered = pinInput.value.trim();
+    if(entered === CONFIG.SITE_PIN){
+      unlock(entered);
+    } else {
+      msg.style.display = "block";
+    }
+  }
+  const saved = sessionStorage.getItem("sitePin");
+  if(saved === CONFIG.SITE_PIN){
+    unlock(saved);
+  } else {
+    $("siteGateBtn").addEventListener("click", tryPin);
+    pinInput.addEventListener("keydown", e => { if(e.key === "Enter") tryPin(); });
+    pinInput.focus();
+  }
 })();
 </script>
 </body>

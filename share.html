@@ -402,11 +402,7 @@
    This page is PUBLIC (no PIN). It POSTs to the same Apps Script Web App.
 ===================================================================== */
 const CONFIG = {
-  SHEET_ID:   "1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE",
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
-  SETTINGS_TAB: "Site Settings",
-  MASTER_TAB: "Cru HS 60th Anniversary Timeline (master)",  // for the event picker (read-only, gviz)
-  FORM_TAB: "Stories",                                      // for the event picker (read-only, gviz)
   TEXT_CAP: 6000,        // friendly cap on pasted/spoken text length
   MAX_FILE_MB: 20        // friendly cap on uploaded file size
 };
@@ -532,25 +528,18 @@ function driveImgUrl(url){
 const DEFAULT_WELCOME_LABEL = "New here? Watch a quick 60-second welcome.";
 let welcomeVideoUrl = "";
 
-function parseGviz(txt){ return JSON.parse(txt.substring(txt.indexOf("{"), txt.lastIndexOf("}")+1)); }
-
 async function loadWelcomeBar(){
   try{
-    const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1`;
-    const txt = await (await fetch(`${base}&sheet=${encodeURIComponent(CONFIG.SETTINGS_TAB)}`)).text();
-    const json = parseGviz(txt);
-    const S = {};
-    if(json.table){
-      json.table.rows.forEach(r => {
-        const k = r.c && r.c[0] ? String(r.c[0].v ?? "").trim() : "";
-        const v = r.c && r.c[1] ? String(r.c[1].v ?? "") : "";
-        if(k) S[k] = v;
-      });
-    }
-    welcomeVideoUrl = (S.welcomeVideoUrl || "").trim();
+    // Reads go through the Apps Script's open getPublicData action, not the
+    // Sheet directly — the Sheet itself can stay locked to invited people
+    // while this page (public, no PIN) keeps working.
+    const data = await postAction({ action: "getPublicData" });
+    if(!data.ok) throw new Error(data.error || "Couldn't load settings.");
+    const S = data.settings || {};
+    welcomeVideoUrl = String(S.welcomeVideoUrl || "").trim();
     if(!welcomeVideoUrl) return;                 // no video set → bar stays hidden
-    const label = (S.welcomeVideoLabel || "").trim() || DEFAULT_WELCOME_LABEL;
-    let thumb = (S.welcomeVideoThumb || "").trim();
+    const label = String(S.welcomeVideoLabel || "").trim() || DEFAULT_WELCOME_LABEL;
+    let thumb = String(S.welcomeVideoThumb || "").trim();
     if(!thumb){                                  // derive a thumbnail from the video link
       const yt = welcomeVideoUrl.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
       const dr = welcomeVideoUrl.match(/(?:\/d\/|[?&]id=)([\w-]{20,})/);
@@ -567,30 +556,17 @@ loadWelcomeBar();
 /* =====================================================================
    Event picker — existing event names come from the DISTINCT, non-blank
    Event values across BOTH content tabs (master timeline + Stories), read
-   live via gviz (read-only; no Apps Script change). The team can create an
-   event on the master, and a public submitter can join it. If the fetch
-   fails, the picker still works via the "Suggest a new event" free-text path.
+   via the Apps Script's open getPublicData action (no PIN — this page
+   stays public). POST requests aren't cached by the browser, so this is
+   always fresh (previously needed a manual cache-buster against gviz's
+   GET caching — no longer necessary). If the fetch fails, the picker
+   still works via the "Suggest a new event" free-text path.
 ===================================================================== */
 async function fetchEventNames(){
-  // Cache-buster (_cb) so a just-suggested event shows up for the next person
-  // instead of the browser / gviz handing back a stale cached list.
-  const base = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&headers=1&_cb=${Date.now()}`;
-  const seen = new Map();   // lowercased -> first-seen original casing (team normalizes spelling)
-  for(const tab of [CONFIG.MASTER_TAB, CONFIG.FORM_TAB]){
-    try{
-      const txt = await (await fetch(`${base}&sheet=${encodeURIComponent(tab)}`)).text();
-      const json = parseGviz(txt);
-      if(!json.table) continue;
-      const cols = json.table.cols.map(c => (c.label||"").toLowerCase().trim());
-      const ci = cols.findIndex(c => c.includes("event"));   // by header label, like index.html
-      if(ci < 0) continue;
-      json.table.rows.forEach(r => {
-        const v = (r.c && r.c[ci] && r.c[ci].v != null) ? String(r.c[ci].v).trim() : "";
-        if(v && !seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v);
-      });
-    }catch(e){ /* tolerate a missing/erroring tab — picker still has the free-text path */ }
-  }
-  return [...seen.values()].sort((a,b) => a.localeCompare(b));
+  try{
+    const data = await postAction({ action: "getPublicData" });
+    return (data.ok && Array.isArray(data.eventNames)) ? data.eventNames : [];
+  }catch(e){ return []; }   // tolerate a failure — picker still has the free-text path
 }
 async function loadEventOptions(){
   let events = [];

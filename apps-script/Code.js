@@ -143,6 +143,7 @@
 
 const EDIT_PIN     = "6060";
 const INTAKE_PIN   = "1951";
+const SITE_PIN     = "1967";  // gate for the public viewing site (index.html) — separate from EDIT_PIN/INTAKE_PIN
 const SETTINGS_TAB = "Site Settings";
 const STAFF_TAB    = "Staff Service";
 const MASTER_TAB   = "Cru HS 60th Anniversary Timeline (master)";
@@ -179,6 +180,9 @@ function doPost(e){
       case "parseStoryText":      return handleParseStoryText(body);
       case "addStoryFromPublic":  return handleAddStoryFromPublic(body);
       case "vimeoThumb":          return handleVimeoThumb(body);
+      // ---- Read-only data endpoints (site password gate) ----
+      case "getSiteData":   return handleGetSiteData(body);
+      case "getPublicData": return handleGetPublicData(body);
       default:                 return json({ ok:false, error:"Unknown action." });
     }
   }catch(err){
@@ -190,12 +194,98 @@ function doPost(e){
 function doGet(){
   return json({ ok:true, service:"cru-hs-60th",
     actions:["saveSettings","parseNotes","addStints","parseHistory","addHistoryEvents",
-             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","vimeoThumb"] });
+             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","vimeoThumb",
+             "getSiteData","getPublicData"] });
 }
 
 function json(obj){
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/* =====================================================================
+   READ-ONLY DATA ENDPOINTS
+   ---------------------------------------------------------------------
+   Added so the site never has to read the Google Sheet directly from a
+   visitor's browser (which required the Sheet to stay "anyone with the
+   link can view"). Instead the site asks THIS script — which runs with
+   the owner's own Google permission — for the data. That lets the Sheet
+   be locked down to specific invited people while the public-facing
+   pages keep working normally.
+
+   getSiteData    — PIN-gated (SITE_PIN). Powers index.html (the full
+                    timeline/gallery/people/locations view). Returns all
+                    four tabs in gviz's own {cols,rows} shape so the
+                    existing front-end parsing code didn't need to change.
+   getPublicData  — NOT PIN-gated, on purpose. Powers share.html (which
+                    stays open to everyone per Mark's decision) — the
+                    welcome-video Site Settings + the event-name picker
+                    list. Neither is personal/sensitive: it's page text
+                    and a list of event tag names, not anyone's story.
+===================================================================== */
+
+// Convert a sheet's full range into the same {cols:[{label}], rows:[{c:[{v}]}]}
+// shape the Google Visualization (gviz) API returns, so existing front-end
+// row-parsing functions (rowsToItems, rowsToStints, etc.) work unchanged.
+function sheetToGvizTable_(sheet){
+  const values = sheet.getDataRange().getValues();
+  if(values.length === 0) return { cols: [], rows: [] };
+  const cols = values[0].map(function(h){ return { label: String(h) }; });
+  const rows = values.slice(1).map(function(r){
+    return { c: r.map(function(v){ return { v: v }; }) };
+  });
+  return { cols: cols, rows: rows };
+}
+
+function handleGetSiteData(body){
+  if(body.pin !== SITE_PIN) return json({ ok:false, error:"Wrong PIN." });
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  function tab(name){
+    const sh = ss.getSheetByName(name);
+    return sh ? sheetToGvizTable_(sh) : { cols: [], rows: [] };
+  }
+  return json({
+    ok: true,
+    master: tab(MASTER_TAB),
+    stories: tab(FORM_TAB),
+    settings: tab(SETTINGS_TAB),
+    staffService: tab(STAFF_TAB)
+  });
+}
+
+function handleGetPublicData(body){
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  // Site Settings — flat key/value (welcome video fields live here; none of
+  // this is personal/sensitive, it's just editable page text).
+  const settings = {};
+  const settingsSheet = ss.getSheetByName(SETTINGS_TAB);
+  if(settingsSheet && settingsSheet.getLastRow() >= 2){
+    const vals = settingsSheet.getRange(2, 1, settingsSheet.getLastRow() - 1, 2).getValues();
+    vals.forEach(function(row){
+      const k = String(row[0] || "").trim();
+      if(k) settings[k] = row[1];
+    });
+  }
+
+  // Distinct, non-blank Event names across both content tabs.
+  const seen = {};
+  const eventNames = [];
+  [MASTER_TAB, FORM_TAB].forEach(function(tabName){
+    const sh = ss.getSheetByName(tabName);
+    if(!sh || sh.getLastRow() < 2) return;
+    const M = colMapper_(sh);
+    const ei = M.colOf("event");
+    if(ei < 0) return;
+    const vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+    vals.forEach(function(row){
+      const v = String(row[ei] || "").trim();
+      if(v && !seen[v.toLowerCase()]){ seen[v.toLowerCase()] = true; eventNames.push(v); }
+    });
+  });
+  eventNames.sort(function(a, b){ return a.localeCompare(b); });
+
+  return json({ ok: true, settings: settings, eventNames: eventNames });
 }
 
 /* ===================== 1) SAVE SETTINGS (page editor) ===================== */
