@@ -728,6 +728,8 @@ const SETTINGS_SCHEMA = [
   { key:"formUrl",        label:"Where both submit buttons go (URL)" },
   { key:"correctionCtaLabel", label:"Correction button text" },
   { key:"correctionFormUrl",  label:"Where the correction button goes (URL)" },
+  { section: "Site access" },
+  { key:"sitePasswordOn", label:"Require a password to view the site? Type ON or OFF (default: ON — if blank, the password stays required)" },
   { section: "Welcome video (Share page)" },
   { key:"welcomeVideoUrl",   label:"Welcome video link (YouTube or Drive). Leave blank to hide the bar." },
   { key:"welcomeVideoThumb", label:"Welcome video thumbnail image URL (optional)" },
@@ -1944,11 +1946,19 @@ async function init(){
    client-side check avoids a round-trip for an obviously-wrong guess, but
    the Apps Script checks SITE_PIN again server-side — that's the real gate,
    not this. Passing once is remembered for the rest of this browser tab's
-   session (sessionStorage), same pattern as the intake pages. */
-(function(){
+   session (sessionStorage), same pattern as the intake pages.
+
+   The password can be switched off entirely from the hidden editor
+   (Site Settings → "Site access" → sitePasswordOn = OFF) — no code change
+   or redeploy needed. That check itself uses the OPEN getPublicData
+   endpoint (no PIN required), so it works even while the gate is on. If
+   the check fails for any reason (offline, etc.), we fail SAFE: the gate
+   stays on. */
+(async function(){
   const gate = $("siteGate");
   const pinInput = $("siteGatePin");
   const msg = $("siteGateMsg");
+
   function unlock(pin){
     SITE_PIN_ENTERED = pin;
     gate.classList.add("hidden");
@@ -1963,6 +1973,24 @@ async function init(){
       msg.style.display = "block";
     }
   }
+
+  let passwordOff = false;
+  try{
+    const res = await fetch(CONFIG.SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "getPublicData" })
+    });
+    const out = await res.json();
+    const flag = out.ok && out.settings ? String(out.settings.sitePasswordOn || "").trim().toLowerCase() : "";
+    passwordOff = flag === "off";
+  }catch(e){ /* couldn't check — fail safe, leave the gate on */ }
+
+  if(passwordOff){
+    unlock(CONFIG.SITE_PIN);   // visitor never sees the gate; the site already "knows" the password
+    return;
+  }
+
   const saved = sessionStorage.getItem("sitePin");
   if(saved === CONFIG.SITE_PIN){
     unlock(saved);
