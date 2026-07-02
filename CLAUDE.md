@@ -79,3 +79,5 @@ Planned phase 2: an intake page (PIN-gated like the editor) where information ga
 ## Owner context
 
 Mark Michal, Innovation Director, Cru High School Ministry. The Google assets live in his Drive folder "Cru HS 60th Anniversary Site". Broader project planning happens in Claude chat (which has the Google Drive connectors); this repo is for site code iteration.
+
+**Working with Mark (communication):** Mark is non-technical and has no coding experience. Explain things in plain language, skip or define jargon, help him think and plan (not just execute), and break work into small, clear steps with check-ins. Prefer planning the approach and getting his approval before changing code.
