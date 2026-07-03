@@ -469,7 +469,7 @@
 <body>
 
 <!-- Site password gate — nothing below loads or fetches data until this passes -->
-<div class="site-gate" id="siteGate">
+<div class="site-gate hidden" id="siteGate">
   <div class="gate-card">
     <h2>Cru High School Legacy</h2>
     <p>This site shares personal stories and history from our Cru community. Enter the password to continue.</p>
@@ -2046,6 +2046,10 @@ async function init(){
     return;
   }
 
+  // Only reveal the gate now that we've confirmed it's actually needed —
+  // it starts hidden in the HTML so nobody sees it flash on screen while
+  // we're still checking the OFF toggle above.
+  gate.classList.remove("hidden");
   $("siteGateBtn").addEventListener("click", tryPin);
   pinInput.addEventListener("keydown", e => { if(e.key === "Enter") tryPin(); });
   pinInput.focus();
