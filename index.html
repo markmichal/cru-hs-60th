@@ -464,6 +464,9 @@
   .site-gate input[type=password]:focus{outline:2px solid var(--yellow); outline-offset:1px;}
   .site-gate button{width:100%; background:var(--yellow); color:var(--black); border:none; border-radius:4px; padding:12px 26px; font-family:'Sora',sans-serif; font-weight:800; font-size:.95rem; cursor:pointer;}
   .site-gate .gate-msg{display:none; margin-top:12px; padding:10px 12px; border-radius:4px; font-size:.84rem; background:#fde8e0; border:1px solid var(--vermilion); color:var(--vermilion);}
+  .gate-spinner{width:34px; height:34px; margin:4px auto 14px; border:4px solid var(--gray); border-top-color:var(--yellow); border-radius:50%; animation:gatespin .8s linear infinite;}
+  @keyframes gatespin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion: reduce){ .gate-spinner{animation:none;} }
 </style>
 </head>
 <body>
@@ -475,7 +478,7 @@
 <div class="site-gate" id="siteGate">
   <div class="gate-card">
     <h2>Cru High School Legacy</h2>
-    <div id="gateLoading"><p>Loading the collection…</p></div>
+    <div id="gateLoading"><div class="gate-spinner"></div><p>Loading the collection…</p></div>
     <div id="gateForm" style="display:none">
       <p>This site shares personal stories and history from our Cru community. Enter the password to continue.</p>
       <input type="password" id="siteGatePin" placeholder="Password" autocomplete="off">
@@ -1004,20 +1007,30 @@ async function loadData(){
     }
   }
 
-  items = rowsToItems({ table: data.master });
-  if(data.stories) items = items.concat(rowsToItems({ table: data.stories }));
+  // If a reply comes back malformed (it happens, rarely — a flaky/partial
+  // response), fail with the refresh message rather than dying silently
+  // mid-parse and stranding the page on "Loading…" forever.
+  try{
+    items = rowsToItems({ table: data.master });
+    if(data.stories) items = items.concat(rowsToItems({ table: data.stories }));
 
-  // Site Settings tab (key/value)
-  if(data.settings){
-    data.settings.rows.forEach(r => {
-      const k = r.c && r.c[0] ? String(r.c[0].v ?? "").trim() : "";
-      const v = r.c && r.c[1] ? String(r.c[1].v ?? "") : "";
-      if(k) SETTINGS[k] = v;
-    });
+    // Site Settings tab (key/value)
+    if(data.settings){
+      data.settings.rows.forEach(r => {
+        const k = r.c && r.c[0] ? String(r.c[0].v ?? "").trim() : "";
+        const v = r.c && r.c[1] ? String(r.c[1].v ?? "") : "";
+        if(k) SETTINGS[k] = v;
+      });
+    }
+
+    // Staff Service tab (one row per stint). Tolerate it not existing yet.
+    STINTS = data.staffService ? rowsToStints({ table: data.staffService }) : [];
+  }catch(e){
+    console.error("Malformed site data:", e);
+    $("dataStatus").textContent = "Something didn't load right — please refresh the page.";
+    DATA = [];
+    return;
   }
-
-  // Staff Service tab (one row per stint). Tolerate it not existing yet.
-  STINTS = data.staffService ? rowsToStints({ table: data.staffService }) : [];
 
   DATA = items;
   $("dataStatus").textContent = `Live from Google Sheets — ${DATA.length} approved item${DATA.length===1?"":"s"}`;
@@ -1448,6 +1461,10 @@ function renderMap(){
 
   initMap();
   leafletMap.invalidateSize();
+  // Re-measure once more after layout fully settles — the immediate call
+  // above can run while the just-revealed container still reports a stale
+  // size, which leaves the pins placed but the background tiles unfetched.
+  setTimeout(() => { if(leafletMap) leafletMap.invalidateSize(); }, 350);
   mapMarkers.forEach(m => leafletMap.removeLayer(m));
   mapMarkers = [];
 
@@ -1802,9 +1819,17 @@ function heroItems(){
     .sort((a,b) => (a.year||0) - (b.year||0))
     .slice(0, heroMax());
 }
+// Apply a slide's photo only when it's needed (deferred from render time so
+// the first photo gets the bandwidth to itself).
+function ensureHeroBg(k){
+  const el = document.querySelectorAll("#heroCarousel .hero-slide")[k];
+  if(el && !el.style.backgroundImage) el.style.backgroundImage = `url('${el.dataset.bg}')`;
+}
 function setHeroSlide(i){
   if(!HERO.length) return;
   heroIdx = (i + HERO.length) % HERO.length;
+  ensureHeroBg(heroIdx);                       // the slide now showing
+  ensureHeroBg((heroIdx + 1) % HERO.length);   // pre-warm the next one
   document.querySelectorAll("#heroCarousel .hero-slide").forEach((el,k) => el.classList.toggle("active", k===heroIdx));
   document.querySelectorAll("#heroDots .hero-dot").forEach((el,k) => el.classList.toggle("active", k===heroIdx));
   const d = HERO[heroIdx];
@@ -1848,8 +1873,11 @@ function renderHeroCarousel(){
     return;
   }
   hero.classList.add("carousel-on");
+  // Only the FIRST slide's photo loads immediately — the rest wait until
+  // they're about to show (see ensureHeroBg). Loading all of them at once
+  // made them compete for bandwidth, so the front photo arrived last.
   $("heroCarousel").innerHTML = HERO.map((d,k) =>
-    `<div class="hero-slide ${k===0?'active':''}" style="background-image:url('${esc(driveImg(d.photo))}')"></div>`).join("");
+    `<div class="hero-slide ${k===0?'active':''}" data-bg="${esc(driveImg(d.photo))}" ${k===0?`style="background-image:url('${esc(driveImg(d.photo))}')"`:''}></div>`).join("");
   $("heroDots").innerHTML = HERO.map((d,k) =>
     `<button class="hero-dot ${k===0?'active':''}" data-hero="${k}" aria-label="Show photo ${k+1} of ${HERO.length}"></button>`).join("");
   heroIdx = 0; setHeroSlide(0); startHeroTimer();
