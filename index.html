@@ -468,14 +468,20 @@
 </head>
 <body>
 
-<!-- Site password gate — nothing below loads or fetches data until this passes -->
-<div class="site-gate hidden" id="siteGate">
+<!-- Site gate — covers the page while the first data request runs. Shows a
+     quiet "Loading…" immediately (never a blank screen, never a flash of the
+     password form). The server's reply decides what happens next: data →
+     this whole overlay disappears; "password required" → the form appears. -->
+<div class="site-gate" id="siteGate">
   <div class="gate-card">
     <h2>Cru High School Legacy</h2>
-    <p>This site shares personal stories and history from our Cru community. Enter the password to continue.</p>
-    <input type="password" id="siteGatePin" placeholder="Password" autocomplete="off">
-    <button id="siteGateBtn">Enter</button>
-    <div class="gate-msg" id="siteGateMsg">That password didn't match. Try again.</div>
+    <div id="gateLoading"><p>Loading the collection…</p></div>
+    <div id="gateForm" style="display:none">
+      <p>This site shares personal stories and history from our Cru community. Enter the password to continue.</p>
+      <input type="password" id="siteGatePin" placeholder="Password" autocomplete="off">
+      <button id="siteGateBtn">Enter</button>
+      <div class="gate-msg" id="siteGateMsg">That password didn't match. Try again.</div>
+    </div>
   </div>
 </div>
 
@@ -710,7 +716,9 @@ const CONFIG = {
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
   EDIT_PIN: "6060",
   INTAKE_PIN: "1951",
-  SITE_PIN: "1967",   // password to view the site at all. Change it here AND at the top of the Apps Script (SITE_PIN).
+  // Site viewing password: lives ONLY in the Apps Script (SITE_PIN at the top
+  // of apps-script/Code.js) — the server checks it and the ON/OFF toggle in
+  // one call, so nothing here needs to know the actual value.
   STAFF_TAB: "Staff Service",
   ERAS: [],
   MAX_TRACK: 20,
@@ -764,6 +772,7 @@ let DATA = [];
 let STINTS = [];            // staff-service rows (one per person/place/timespan)
 let SETTINGS = {};          // values loaded from the Site Settings tab
 let SITE_PIN_ENTERED = "";  // set once the visitor passes the site password gate; sent with every data request
+let PRELOADED = null;       // the gate's successful getSiteData response, handed to loadData() so the data isn't fetched twice
 let filters = { search:"", decade:"", location:"", person:"", type:"", peopleQ:"", locationQ:"" };
 let currentEra = null;
 let editing = false;
@@ -970,23 +979,29 @@ function rowsToItems(json){
 async function loadData(){
   // Reads go through the Apps Script (getSiteData), not the Sheet directly —
   // it runs with the site owner's own Google permission, so the Sheet itself
-  // can stay locked down to specific invited people. SITE_PIN_ENTERED is set
-  // once the visitor passes the password gate; the server checks it too.
+  // can stay locked down to specific invited people. The gate already made
+  // this exact request to decide access, so normally its response is reused
+  // here (PRELOADED) — the fetch below only runs on a later manual re-load.
   let items = [];
   let data;
-  try{
-    const res = await fetch(CONFIG.SCRIPT_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getSiteData", pin: SITE_PIN_ENTERED })
-    });
-    data = await res.json();
-    if(!data.ok) throw new Error(data.error || "Couldn't load site data.");
-  }catch(e){
-    console.error("Could not load site data:", e);
-    $("dataStatus").textContent = "Couldn't reach the server — try refreshing the page.";
-    DATA = [];
-    return;
+  if(PRELOADED){
+    data = PRELOADED;
+    PRELOADED = null;
+  } else {
+    try{
+      const res = await fetch(CONFIG.SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "getSiteData", pin: SITE_PIN_ENTERED })
+      });
+      data = await res.json();
+      if(!data.ok) throw new Error(data.error || "Couldn't load site data.");
+    }catch(e){
+      console.error("Could not load site data:", e);
+      $("dataStatus").textContent = "Couldn't reach the server — try refreshing the page.";
+      DATA = [];
+      return;
+    }
   }
 
   items = rowsToItems({ table: data.master });
@@ -1987,72 +2002,81 @@ async function init(){
   startEventRotators();   // begin the ~2s event-deck photo rotation (DOM-driven, covers re-renders)
 }
 
-/* ---------- Site password gate ----------
-   Nothing above runs (no fetch, no render) until this passes. A quick
-   client-side check avoids a round-trip for an obviously-wrong guess, but
-   the Apps Script checks SITE_PIN again server-side — that's the real gate,
-   not this. Passing once is remembered for the rest of this browser tab's
-   session (sessionStorage), same pattern as the intake pages.
-
-   The password can be switched off entirely from the hidden editor
-   (Site Settings → "Site access" → sitePasswordOn = OFF) — no code change
-   or redeploy needed. That check itself uses the OPEN getPublicData
-   endpoint (no PIN required), so it works even while the gate is on. If
-   the check fails for any reason (offline, etc.), we fail SAFE: the gate
-   stays on. */
+/* ---------- Site gate: one request settles everything ----------
+   On load, ONE getSiteData request goes out carrying whatever pin this
+   browser tab remembers (possibly none). The server checks the
+   sitePasswordOn toggle and the pin together and either returns all the
+   site data (→ render immediately, overlay disappears) or { needPin:true }
+   (→ the password form appears). The pin itself lives only in the Apps
+   Script — this page never knows the value, it just forwards what the
+   visitor typed and lets the server judge. While the request is in flight
+   the overlay shows "Loading the collection…" — never a blank screen, and
+   never a flash of the password form for visitors who don't need it. If
+   the server can't be reached at all, the gate fails SAFE (no data was
+   returned, so there's nothing to show anyway). */
 (async function(){
   const gate = $("siteGate");
+  const gateLoading = $("gateLoading");
+  const gateForm = $("gateForm");
   const pinInput = $("siteGatePin");
   const msg = $("siteGateMsg");
 
-  function unlock(pin){
-    SITE_PIN_ENTERED = pin;
-    gate.classList.add("hidden");
-    sessionStorage.setItem("sitePin", pin);
-    init();
-  }
-  function tryPin(){
-    const entered = pinInput.value.trim();
-    if(entered === CONFIG.SITE_PIN){
-      unlock(entered);
-    } else {
-      msg.style.display = "block";
-    }
-  }
-
-  // Already unlocked this browser tab's session — skip the toggle check
-  // entirely and go straight in. Saves a full network round-trip on every
-  // page reload for a visitor who already passed the gate once.
-  const saved = sessionStorage.getItem("sitePin");
-  if(saved === CONFIG.SITE_PIN){
-    unlock(saved);
-    return;
-  }
-
-  let passwordOff = false;
-  try{
+  async function attempt(pin){
     const res = await fetch(CONFIG.SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ action: "getPublicData" })
+      body: JSON.stringify({ action: "getSiteData", pin: pin })
     });
-    const out = await res.json();
-    const flag = out.ok && out.settings ? String(out.settings.sitePasswordOn || "").trim().toLowerCase() : "";
-    passwordOff = flag === "off";
-  }catch(e){ /* couldn't check — fail safe, leave the gate on */ }
+    return await res.json();
+  }
+  function enter(pin, data){
+    SITE_PIN_ENTERED = pin;
+    sessionStorage.setItem("sitePin", pin);
+    PRELOADED = data;          // hand the response to loadData() — no second fetch
+    gate.classList.add("hidden");
+    init();
+  }
+  function showForm(){
+    gateLoading.style.display = "none";
+    gateForm.style.display = "block";
+    pinInput.focus();
+  }
 
-  if(passwordOff){
-    unlock(CONFIG.SITE_PIN);   // visitor never sees the gate; the site already "knows" the password
+  // First (and usually only) trip: send the remembered pin, if any.
+  try{
+    const saved = sessionStorage.getItem("sitePin") || "";
+    const out = await attempt(saved);
+    if(out.ok){ enter(saved, out); return; }
+    if(!out.needPin){
+      gateLoading.innerHTML = "<p>Couldn't reach the server — please try refreshing the page.</p>";
+      return;
+    }
+  }catch(e){
+    gateLoading.innerHTML = "<p>Couldn't reach the server — please try refreshing the page.</p>";
     return;
   }
 
-  // Only reveal the gate now that we've confirmed it's actually needed —
-  // it starts hidden in the HTML so nobody sees it flash on screen while
-  // we're still checking the OFF toggle above.
-  gate.classList.remove("hidden");
-  $("siteGateBtn").addEventListener("click", tryPin);
-  pinInput.addEventListener("keydown", e => { if(e.key === "Enter") tryPin(); });
-  pinInput.focus();
+  // Password required: reveal the form. Each guess is verified by the
+  // server, which returns the data itself on success.
+  showForm();
+  async function submit(){
+    const entered = pinInput.value.trim();
+    if(!entered){ msg.style.display = "block"; return; }
+    const btn = $("siteGateBtn");
+    btn.disabled = true; btn.textContent = "Checking…"; msg.style.display = "none";
+    try{
+      const out = await attempt(entered);
+      if(out.ok){ enter(entered, out); return; }
+      msg.style.display = "block";
+    }catch(e){
+      msg.textContent = "Couldn't reach the server — please try again.";
+      msg.style.display = "block";
+    }finally{
+      btn.disabled = false; btn.textContent = "Enter";
+    }
+  }
+  $("siteGateBtn").addEventListener("click", submit);
+  pinInput.addEventListener("keydown", e => { if(e.key === "Enter") submit(); });
 })();
 </script>
 </body>

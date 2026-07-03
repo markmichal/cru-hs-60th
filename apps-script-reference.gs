@@ -255,20 +255,40 @@ function sheetToGvizTable_(sheet){
   return { cols: cols, rows: rows };
 }
 
+// One call does everything: checks the sitePasswordOn toggle AND (if access
+// is allowed) returns all four tabs. Previously the front-end made two
+// sequential round-trips — one to check the toggle (getPublicData), then one
+// for the data — which roughly doubled the time a visitor stared at nothing.
+// Now index.html sends whatever pin it has (possibly empty); the server
+// decides: toggle OFF → data for everyone; toggle ON → data only with the
+// right pin, otherwise { needPin:true } so the page shows the password form.
 function handleGetSiteData(body){
-  if(body.pin !== SITE_PIN) return json({ ok:false, error:"Wrong PIN." });
-  SpreadsheetApp.flush();   // force any pending sheet edits to commit before we read — avoids a stale view
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   function tab(name){
     const sh = ss.getSheetByName(name);
     return sh ? sheetToGvizTable_(sh) : { cols: [], rows: [] };
   }
+
+  // Read settings first — needed for the toggle either way, and it's the
+  // cheapest tab. Only read the heavy content tabs once access is settled.
+  const settingsTable = tab(SETTINGS_TAB);
+  let passwordOff = false;
+  settingsTable.rows.forEach(function(r){
+    const key = String((r.c[0] && r.c[0].v) || "").trim();
+    if(key === "sitePasswordOn"){
+      passwordOff = String((r.c[1] && r.c[1].v) || "").trim().toLowerCase() === "off";
+    }
+  });
+  if(!passwordOff && body.pin !== SITE_PIN){
+    return json({ ok:false, needPin:true });
+  }
+
   const hiddenNames = getHiddenNames_();
   return json({
     ok: true,
     master: stripHiddenFromPeopleColumn_(tab(MASTER_TAB), hiddenNames),
     stories: stripHiddenFromPeopleColumn_(tab(FORM_TAB), hiddenNames),
-    settings: tab(SETTINGS_TAB),
+    settings: settingsTable,
     staffService: removeHiddenFromStaffTable_(tab(STAFF_TAB), hiddenNames)
   });
 }
@@ -355,32 +375,40 @@ function handleAddHiddenPerson(body){
 }
 
 function handleGetPublicData(body){
-  SpreadsheetApp.flush();   // force any pending sheet edits to commit before we read — avoids a stale view
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // Site Settings — flat key/value (welcome video fields live here; none of
   // this is personal/sensitive, it's just editable page text).
+  //
+  // Reads via getDataRange() (whole sheet in one call), NOT a targeted
+  // getRange(2, 1, getLastRow()-1, ...) — the targeted form was observed
+  // returning a stale/incomplete view of this sheet in production (missing
+  // most rows, wrong value on the one it did return) while getDataRange()
+  // reliably returns the correct, current data. Root cause unconfirmed;
+  // this is the same reliable pattern sheetToGvizTable_() already uses.
   const settings = {};
   const settingsSheet = ss.getSheetByName(SETTINGS_TAB);
-  if(settingsSheet && settingsSheet.getLastRow() >= 2){
-    const vals = settingsSheet.getRange(2, 1, settingsSheet.getLastRow() - 1, 2).getValues();
-    vals.forEach(function(row){
+  if(settingsSheet){
+    const allVals = settingsSheet.getDataRange().getValues();
+    allVals.slice(1).forEach(function(row){
       const k = String(row[0] || "").trim();
       if(k) settings[k] = row[1];
     });
   }
 
-  // Distinct, non-blank Event names across both content tabs.
+  // Distinct, non-blank Event names across both content tabs. Same
+  // getDataRange() approach for the same reason as above.
   const seen = {};
   const eventNames = [];
   [MASTER_TAB, FORM_TAB].forEach(function(tabName){
     const sh = ss.getSheetByName(tabName);
-    if(!sh || sh.getLastRow() < 2) return;
-    const M = colMapper_(sh);
-    const ei = M.colOf("event");
+    if(!sh) return;
+    const allVals = sh.getDataRange().getValues();
+    if(allVals.length < 2) return;
+    const headers = allVals[0].map(function(h){ return String(h).toLowerCase().trim(); });
+    const ei = headers.findIndex(function(h){ return h.indexOf("event") >= 0; });
     if(ei < 0) return;
-    const vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
-    vals.forEach(function(row){
+    allVals.slice(1).forEach(function(row){
       const v = String(row[ei] || "").trim();
       if(v && !seen[v.toLowerCase()]){ seen[v.toLowerCase()] = true; eventNames.push(v); }
     });
