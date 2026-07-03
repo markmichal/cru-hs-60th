@@ -41,7 +41,7 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 ## Two-Machine Rules
 
 - Repos must live in a plain local folder, never inside a Google Drive-synced folder — Drive can corrupt `.git` with conflict-copy files.
-- Both repos currently live at `/Users/markmichal/MY DOCUMENTS/Projects/`.
+- Repos currently live at `/Users/markmichal/Desktop/MY DOCUMENTS/Projects/` (this one at `.../cru-hs-60th`) — confirm the exact path on each machine, since it has drifted before.
 - Run `git pull` at the start of every session, on whichever machine you're on.
 - Commit and push before stopping so the other machine can pick up current work.
 - `.env` and `.claude/` must always be in `.gitignore` and must never be committed.
