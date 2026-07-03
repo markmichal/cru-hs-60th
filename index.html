@@ -2020,6 +2020,15 @@ async function init(){
     }
   }
 
+  // Already unlocked this browser tab's session — skip the toggle check
+  // entirely and go straight in. Saves a full network round-trip on every
+  // page reload for a visitor who already passed the gate once.
+  const saved = sessionStorage.getItem("sitePin");
+  if(saved === CONFIG.SITE_PIN){
+    unlock(saved);
+    return;
+  }
+
   let passwordOff = false;
   try{
     const res = await fetch(CONFIG.SCRIPT_URL, {
@@ -2037,14 +2046,9 @@ async function init(){
     return;
   }
 
-  const saved = sessionStorage.getItem("sitePin");
-  if(saved === CONFIG.SITE_PIN){
-    unlock(saved);
-  } else {
-    $("siteGateBtn").addEventListener("click", tryPin);
-    pinInput.addEventListener("keydown", e => { if(e.key === "Enter") tryPin(); });
-    pinInput.focus();
-  }
+  $("siteGateBtn").addEventListener("click", tryPin);
+  pinInput.addEventListener("keydown", e => { if(e.key === "Enter") tryPin(); });
+  pinInput.focus();
 })();
 </script>
 </body>

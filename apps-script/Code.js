@@ -229,11 +229,27 @@ function json(obj){
 // Convert a sheet's full range into the same {cols:[{label}], rows:[{c:[{v}]}]}
 // shape the Google Visualization (gviz) API returns, so existing front-end
 // row-parsing functions (rowsToItems, rowsToStints, etc.) work unchanged.
+//
+// Trims trailing fully-blank rows before processing/returning them. Sheets
+// often report a "last row" far beyond where real data ends (stray
+// formatting, a long-ago paste, etc.), so getDataRange() can silently
+// include hundreds/thousands of empty rows — that bloats every request's
+// processing time, JSON payload size, and the client-side parsing that
+// follows. This does NOT touch the sheet itself, only what this endpoint
+// reads and sends onward.
 function sheetToGvizTable_(sheet){
   const values = sheet.getDataRange().getValues();
   if(values.length === 0) return { cols: [], rows: [] };
-  const cols = values[0].map(function(h){ return { label: String(h) }; });
-  const rows = values.slice(1).map(function(r){
+  let lastReal = values.length - 1;
+  // A "blank" row still often has `false` in checkbox-formatted columns
+  // (Approved/On Timeline/Featured) — checkboxes never return an actually
+  // empty value, so that alone shouldn't count as real content.
+  while(lastReal > 0 && values[lastReal].every(function(v){ return v === "" || v === null || v === false; })){
+    lastReal--;
+  }
+  const trimmed = values.slice(0, lastReal + 1);
+  const cols = trimmed[0].map(function(h){ return { label: String(h) }; });
+  const rows = trimmed.slice(1).map(function(r){
     return { c: r.map(function(v){ return { v: v }; }) };
   });
   return { cols: cols, rows: rows };
