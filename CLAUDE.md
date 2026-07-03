@@ -4,16 +4,21 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 
 ## Architecture (do not break these connections)
 
-- **index.html** — the entire site. No build step. Deployed via GitHub Pages from `main` branch root. Live at https://markmichal.github.io/cru-hs-60th/
-- **Data source:** Google Sheet ID `1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE`, read client-side via the gviz JSON endpoint. The sheet is shared "Anyone with link → Viewer."
+- **index.html** — the main public site (timeline, gallery, people, locations). No build step. Deployed via GitHub Pages from `main` branch root. Live at https://highschoollegacy.crutastic.com (also https://markmichal.github.io/cru-hs-60th/). **Password-gated** (CONFIG.SITE_PIN, currently `1967`) — nothing loads or fetches any data until a visitor enters it correctly; the Apps Script checks the same PIN again server-side, not just in the page's own JS. The gate can be switched OFF site-wide from the hidden editor (Site Settings → `sitePasswordOn` = `OFF`) with no code change or redeploy; it fails safe (stays ON) if that setting is missing or unreachable.
+- **share.html** — the public story + service-history submission page. **Intentionally has no password** — stays fully open so anyone can contribute without a code.
+- **Data source:** Google Sheet ID `1FqNAgRTQBfGzaGJM_R8oe6wcUScp-UCU9nPABli7BkE`. Visitors' browsers never read the Sheet directly (no more `gviz` calls) — both pages go through the Apps Script instead (see below), which reads the Sheet using the owner's own Google permission. This is what allows the Sheet's sharing to be restricted to specific invited people rather than "anyone with the link" — the site keeps working either way.
   - Tab `Cru HS 60th Anniversary Timeline (master)` — curated timeline content (16 seed milestones — placeholder history the team will replace with the real 1967–2027 timeline). NEVER rename this tab without updating CONFIG.MASTER_TAB.
   - Tab `Stories` — story/gallery rows the site reads (public share.html submissions; renamed from the old `Form Responses 2`). Targeted by tab NAME (CONFIG.FORM_TAB), and every column is read AND written by header name (case-insensitive substring), never by position — so columns can be reordered freely.
-  - Tab `Site Settings` — key/value pairs for editable page text (written by the hidden editor).
+  - Tab `Site Settings` — key/value pairs for editable page text (written by the hidden editor), plus the `sitePasswordOn` toggle above.
   - **`Event` column** (on BOTH the master and `Stories` tabs, added by hand in the content spine) — an optional event-name tag, read by header name. Items sharing the same trimmed, non-blank value collapse into one event card / pop-out (see "Event grouping" below); blank = a standalone card. "Event" is a **grouping tag, not an item type** — the item Type set is Milestone · Photo · Flyer · Story · Video.
 - **Moderation:** only rows with the `Approved` checkbox checked appear on the site. `On Timeline` checkbox additionally surfaces an item on the timeline strip (gallery shows everything approved). `Featured` checkbox additionally surfaces an approved photo in the hero carousel at the top of the page (overlay mode; title + story become the caption; oldest first; the carousel auto-advances and only activates when ≥1 photo is Featured, otherwise the hero stays the plain white headline). The max photo count (default 7, 1–12) and seconds-per-slide (default 6, 2–30) are editable in the hidden editor under "Top photo slider" (CONFIG.HERO_MAX / HERO_SECONDS defaults; clamped).
-- **Public Google Form** (submissions): https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform
-- **Apps Script Web App** (bound to the Sheet) receives POSTs from the site's hidden editor (`action: "saveSettings"`) and writes to the Site Settings tab. URL is in CONFIG.SCRIPT_URL. PIN-gated; PIN must match in both the site CONFIG and the script.
-- **Hidden editor:** faint dot bottom-left of the site → PIN (CONFIG.EDIT_PIN, currently 6060) → edit page text/buttons/hero image. Saves persist to the Site Settings tab for all visitors. Timeline/gallery CONTENT is edited directly in the spreadsheet, not in the site.
+- **Public Google Form** (legacy/reference only — `share.html` is the real submission path now): https://docs.google.com/forms/d/e/1FAIpQLSfkvfxs7Gcd7-mRBcBHg2f-kBIFS7wl5LKCUSTw6ukKicUQqg/viewform
+- **Apps Script Web App** (bound to the Sheet, runs with the owner's own Google permission regardless of who's visiting). One URL, in CONFIG.SCRIPT_URL, shared by every page. Key actions:
+  - `getSiteData` — PIN-gated (SITE_PIN, checked server-side). Powers all of `index.html`'s content (timeline, gallery, people, locations) in one call.
+  - `getPublicData` — intentionally open, no PIN. Powers `share.html`'s welcome-video bar and event-name picker — neither is personal/sensitive data.
+  - `saveSettings` — PIN-gated (EDIT_PIN). Writes page text (and the `sitePasswordOn` toggle) from the hidden editor to the Site Settings tab.
+  - Plus the staff/history intake and public-submission actions (`parseServiceText`, `addServiceFromPublic`, `uploadStoryMedia`, `parseStoryText`, `addStoryFromPublic`, etc.) — see `apps-script/Code.js` for the full router.
+- **Hidden editor:** faint dot bottom-left of the site → PIN (CONFIG.EDIT_PIN, currently 6060) → edit page text/buttons/hero image, plus the site password ON/OFF switch (new "Site access" section). Saves persist to the Site Settings tab for all visitors. Timeline/gallery CONTENT is edited directly in the spreadsheet, not in the site.
 
 ## Key code landmarks in index.html
 
@@ -36,7 +41,7 @@ Single-file static website celebrating 60 years of Cru High School Ministry (196
 
 - Edit index.html → commit → push to `main` → GitHub Pages auto-rebuilds in ~1–2 min. No other deploy step.
 - Content changes need no code: edit the spreadsheet, check Approved, refresh the site.
-- The Apps Script source also lives in this repo as reference (`Code.gs` if present), but the live copy runs inside the Google Sheet (Extensions → Apps Script). Changing the live script requires re-deploying the Web App (Manage deployments → new version).
+- The Apps Script source lives in this repo at `apps-script/` (the live mirror — this is what `clasp` pushes/pulls; see `apps-script/README.md`) and `apps-script-reference.gs` (an older reference copy of just the main file, kept in sync by hand — a possible future cleanup is retiring this duplicate). Deploying a change no longer requires opening the online editor: from `apps-script/`, run `clasp push` then `clasp deploy -i <the live deployment ID>` to publish to the same URL.
 
 ## Two-Machine Rules
 
