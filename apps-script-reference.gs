@@ -150,6 +150,7 @@ const MASTER_TAB   = "Cru HS 60th Anniversary Timeline (master)";
 const FORM_TAB     = "Stories";   // story/gallery rows (the website reads this tab).
                                   // Renamed from "Form Responses 2" — rename the
                                   // actual Sheet tab to "Stories" to match.
+const HIDDEN_TAB   = "Hidden People";  // Person Name | Hide Until — temporary site-wide hides
 
 // Header row written when the Staff Service tab is first created. Order matters:
 // the last two columns are internal provenance and are never shown on the site.
@@ -183,6 +184,7 @@ function doPost(e){
       // ---- Read-only data endpoints (site password gate) ----
       case "getSiteData":   return handleGetSiteData(body);
       case "getPublicData": return handleGetPublicData(body);
+      case "addHiddenPerson": return handleAddHiddenPerson(body);
       default:                 return json({ ok:false, error:"Unknown action." });
     }
   }catch(err){
@@ -195,7 +197,7 @@ function doGet(){
   return json({ ok:true, service:"cru-hs-60th",
     actions:["saveSettings","parseNotes","addStints","parseHistory","addHistoryEvents",
              "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","vimeoThumb",
-             "getSiteData","getPublicData"] });
+             "getSiteData","getPublicData","addHiddenPerson"] });
 }
 
 function json(obj){
@@ -244,13 +246,95 @@ function handleGetSiteData(body){
     const sh = ss.getSheetByName(name);
     return sh ? sheetToGvizTable_(sh) : { cols: [], rows: [] };
   }
+  const hiddenNames = getHiddenNames_();
   return json({
     ok: true,
-    master: tab(MASTER_TAB),
-    stories: tab(FORM_TAB),
+    master: stripHiddenFromPeopleColumn_(tab(MASTER_TAB), hiddenNames),
+    stories: stripHiddenFromPeopleColumn_(tab(FORM_TAB), hiddenNames),
     settings: tab(SETTINGS_TAB),
-    staffService: tab(STAFF_TAB)
+    staffService: removeHiddenFromStaffTable_(tab(STAFF_TAB), hiddenNames)
   });
+}
+
+/* =====================================================================
+   HIDDEN PEOPLE — temporary site-wide removal (e.g. someone traveling
+   somewhere sensitive). Filtering happens HERE, server-side, before any
+   data reaches a visitor's browser — a hidden person's data never leaves
+   Google while they're hidden, unlike a purely client-side hide.
+===================================================================== */
+
+// Returns a Set of lowercased, trimmed names currently hidden (Hide Until
+// is today or later). Sheet: Person Name | Hide Until.
+function getHiddenNames_(){
+  const hidden = new Set();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sh = ss.getSheetByName(HIDDEN_TAB);
+  if(!sh || sh.getLastRow() < 2) return hidden;
+  const M = colMapper_(sh);
+  const ni = M.colOf("name");
+  const di = M.colOf("hide until");
+  if(ni < 0 || di < 0) return hidden;
+  const vals = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  vals.forEach(function(row){
+    const name = String(row[ni] || "").trim();
+    if(!name) return;
+    const untilRaw = row[di];
+    const untilDate = (untilRaw instanceof Date) ? untilRaw : new Date(untilRaw);
+    if(!isNaN(untilDate) && untilDate >= today) hidden.add(name.toLowerCase());
+  });
+  return hidden;
+}
+
+// Strips hidden names out of a gviz-shaped table's People-like column
+// (comma/semicolon separated), matching index.html's peopleList() split
+// convention exactly so the rest of the site's parsing stays consistent.
+// Other people on the same row are left in place.
+function stripHiddenFromPeopleColumn_(table, hiddenNames){
+  if(hiddenNames.size === 0) return table;
+  const ci = table.cols.findIndex(function(c){ return (c.label || "").toLowerCase().indexOf("people") >= 0; });
+  if(ci < 0) return table;
+  table.rows.forEach(function(row){
+    const cell = row.c[ci];
+    if(!cell || cell.v == null) return;
+    const kept = String(cell.v).split(/[,;]/).map(function(s){ return s.trim(); }).filter(Boolean)
+      .filter(function(name){ return !hiddenNames.has(name.toLowerCase()); });
+    cell.v = kept.join(", ");
+  });
+  return table;
+}
+
+// Drops Staff Service rows for a currently-hidden person entirely (each
+// row is one person/place/timespan, so there's nothing left to salvage).
+function removeHiddenFromStaffTable_(table, hiddenNames){
+  if(hiddenNames.size === 0) return table;
+  const ci = table.cols.findIndex(function(c){ return (c.label || "").toLowerCase().indexOf("person") >= 0; });
+  if(ci < 0) return table;
+  table.rows = table.rows.filter(function(row){
+    const cell = row.c[ci];
+    const name = (cell && cell.v != null) ? String(cell.v).trim().toLowerCase() : "";
+    return !hiddenNames.has(name);
+  });
+  return table;
+}
+
+// PIN-gated (EDIT_PIN, same as the hidden editor). Appends a row to the
+// Hidden People tab, creating it on first use.
+function handleAddHiddenPerson(body){
+  if(body.pin !== EDIT_PIN) return json({ ok:false, error:"Wrong PIN." });
+  const name = clean(body.personName);
+  const hideUntil = clean(body.hideUntil);
+  if(!name) return json({ ok:false, error:"No name provided." });
+  if(!hideUntil) return json({ ok:false, error:"No hide-until date provided." });
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(HIDDEN_TAB);
+  if(!sheet){
+    sheet = ss.insertSheet(HIDDEN_TAB);
+    sheet.appendRow(["Person Name", "Hide Until"]);
+  }
+  sheet.appendRow([name, hideUntil]);
+  return json({ ok: true });
 }
 
 function handleGetPublicData(body){

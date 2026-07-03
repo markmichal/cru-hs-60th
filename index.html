@@ -654,6 +654,21 @@
         <button class="cancel" data-close="settingsOverlay">Cancel</button>
         <button class="save" id="settingsSave">Save</button>
       </div>
+
+      <div class="s-section">Temporarily hide someone</div>
+      <div class="s-note">For someone who needs to disappear from the site for a while (e.g. traveling somewhere sensitive). Their name comes off immediately and comes back on its own once the date passes — nothing else to remember.</div>
+      <div class="s-field">
+        <label for="hidePersonName">Person's name (exactly as it appears on the site)</label>
+        <input id="hidePersonName" placeholder="e.g. Chris Smith">
+      </div>
+      <div class="s-field">
+        <label for="hidePersonUntil">Hide until</label>
+        <input type="date" id="hidePersonUntil">
+      </div>
+      <div class="s-actions">
+        <button class="save" id="hidePersonBtn">Hide this person</button>
+      </div>
+      <div class="s-note" id="hidePersonMsg"></div>
     </div>
   </div>
 </div>
@@ -1682,6 +1697,11 @@ function openSettings(){
         : `<input id="set-${f.key}" data-skey="${f.key}" value="${esc(v)}">`}
     </div>`;
   }).join("");
+  const defaultUntil = new Date();
+  defaultUntil.setMonth(defaultUntil.getMonth() + 3);
+  $("hidePersonName").value = "";
+  $("hidePersonUntil").value = defaultUntil.toISOString().slice(0, 10);
+  $("hidePersonMsg").textContent = "";
   $("settingsOverlay").classList.add("open");
 }
 
@@ -1707,6 +1727,31 @@ async function saveSettings(){
     alert("Couldn't save: " + e.message + "\n\nCheck that SCRIPT_URL is deployed and the PIN matches the Apps Script.");
   }finally{
     $("settingsSave").textContent = "Save"; $("settingsSave").disabled = false;
+  }
+}
+
+async function hidePerson(){
+  const name = $("hidePersonName").value.trim();
+  const hideUntil = $("hidePersonUntil").value;
+  const msg = $("hidePersonMsg");
+  if(!name){ msg.textContent = "Enter a name first."; return; }
+  if(!hideUntil){ msg.textContent = "Pick a date first."; return; }
+  const btn = $("hidePersonBtn");
+  btn.textContent = "Hiding…"; btn.disabled = true; msg.textContent = "";
+  try{
+    const res = await fetch(CONFIG.SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ pin: CONFIG.EDIT_PIN, action: "addHiddenPerson", personName: name, hideUntil: hideUntil })
+    });
+    const out = await res.json();
+    if(!out.ok) throw new Error(out.error || "Couldn't hide that person.");
+    msg.textContent = `Done — ${name} is hidden until ${hideUntil}, and will reappear on their own after that.`;
+    $("hidePersonName").value = "";
+  }catch(e){
+    msg.textContent = "Couldn't save: " + e.message;
+  }finally{
+    btn.textContent = "Hide this person"; btn.disabled = false;
   }
 }
 
@@ -1900,6 +1945,7 @@ document.addEventListener("click", e => {
   if(e.target.id === "exitEditBtn"){ exitEditMode(); return; }
   if(e.target.id === "openSettingsBtn"){ openSettings(); return; }
   if(e.target.id === "settingsSave"){ saveSettings(); return; }
+  if(e.target.id === "hidePersonBtn"){ hidePerson(); return; }
 });
 
 $("searchBox").addEventListener("input", e => { filters.search = e.target.value; renderGallery(); });
