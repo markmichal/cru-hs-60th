@@ -257,6 +257,7 @@ function sheetToGvizTable_(sheet){
 
 function handleGetSiteData(body){
   if(body.pin !== SITE_PIN) return json({ ok:false, error:"Wrong PIN." });
+  SpreadsheetApp.flush();   // force any pending sheet edits to commit before we read — avoids a stale view
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   function tab(name){
     const sh = ss.getSheetByName(name);
@@ -354,6 +355,7 @@ function handleAddHiddenPerson(body){
 }
 
 function handleGetPublicData(body){
+  SpreadsheetApp.flush();   // force any pending sheet edits to commit before we read — avoids a stale view
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // Site Settings — flat key/value (welcome video fields live here; none of
