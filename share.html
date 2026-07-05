@@ -170,6 +170,20 @@
   .home-link:hover{text-decoration:underline;}
   .home-link .ha{font-size:1.25rem; line-height:1;}
 
+  /* ---------- Numbered steps (page framing) ---------- */
+  .page-intro{max-width:780px; margin:0 auto; padding:18px 20px 0; font-family:'Sora',sans-serif;
+    font-weight:700; font-size:1.08rem; color:var(--black); line-height:1.45;}
+  .step-num{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border-radius:50%; background:var(--black); color:var(--yellow); font-family:'Sora',sans-serif;
+    font-weight:800; font-size:1rem; flex-shrink:0;}
+  h2 .step-num{vertical-align:-5px; margin-right:8px;}
+  .step-head{display:flex; gap:12px; align-items:flex-start;}
+  /* Step 3 gets a teal accent so it doesn't read as a twin of step 1 */
+  #referCard .collapse-head{background:#e9f6f3; border-color:var(--turquoise);}
+  /* Step 1 flips to a quiet done state once the service record is in */
+  #serviceCard.step-done .collapse-head{background:#e4f5ee; border-color:var(--turquoise);}
+  #serviceCard.step-done .step-num{background:var(--turquoise); color:var(--white);}
+
   /* ---------- "Leave without saving?" confirm card (reuses .lightbox) ---------- */
   .confirm-card{position:relative; z-index:1; background:var(--white); border-radius:12px; padding:28px;
     max-width:440px; width:100%; box-shadow:0 8px 30px rgba(0,0,0,.32);}
@@ -194,6 +208,8 @@
 
 <main>
 
+  <p class="page-intro">Three quick things help us build the archive — do whichever apply to you:</p>
+
   <!-- ===== Welcome video bar (hidden unless welcomeVideoUrl is set) ===== -->
   <div class="welcome-bar" id="welcomeBar" style="display:none">
     <button class="wb-thumb" id="wbThumb" aria-label="Play welcome video">
@@ -207,14 +223,14 @@
   <!-- ===== Service history (collapsed by default) ===== -->
   <div class="card collapse" id="serviceCard">
     <button class="collapse-head" id="serviceToggle" aria-expanded="false" aria-controls="serviceBody">
-      <span>📍 Did you serve with Cru High School?
-        <span class="ch-sub">Add your service history (takes 30 seconds)</span>
+      <span class="step-head"><span class="step-num" id="serviceStepNum">1</span><span>Did you serve with Cru High School?
+        <span class="ch-sub" id="serviceSub">Add your service history (takes 30 seconds) · Already added it on an earlier visit? Skip this step.</span></span>
       </span>
       <span class="chev">&#9662;</span>
     </button>
     <div class="collapse-body" id="serviceBody" hidden>
 
-      <div class="service-done" id="serviceDone">✓ Thanks! Got your service history.</div>
+      <div class="service-done" id="serviceDone">✓ Your service record is in — thank you!</div>
 
       <div id="serviceForm">
         <p class="lead" style="margin-bottom:16px">Tell us where and when you served — in your own words. You can type it or tap the microphone and just say it.</p>
@@ -255,11 +271,10 @@
     </div>
   </div>
 
-  <!-- ===== Hero: share a photo, flyer, or video ===== -->
+  <!-- ===== Step 2: photo + story, one card ===== -->
   <div class="card" id="mediaCard">
-    <h2>Share a photo, flyer, or video</h2>
-    <p class="lead">Got an old photo, a camp flyer, or a video clip? Add it here. This is the heart of your story.</p>
-    <p class="dim-note" style="margin-top:-4px">Best to add it now. A story can't be edited once you've submitted it, so there's no adding a photo later.</p>
+    <h2><span class="step-num">2</span>Share a photo &amp; its story</h2>
+    <p class="lead">Got an old photo, a camp flyer, or a video clip? Add it here, then tell us about it below.</p>
 
     <div class="media-grid">
       <div class="upload-box media-col" id="uploadBox">
@@ -283,13 +298,15 @@
       </div>
     </div>
 
-    <div class="msg error" id="mediaMsg"></div>
-  </div>
+    <p class="dim-note" style="margin-top:10px">Old photos with students in them are perfect — that's the ministry. When you tell us who's in the photo, just name the staff; no need to identify students.</p>
 
-  <!-- ===== Story ===== -->
-  <div class="card" id="storyCard">
-    <h2>Now tell us about it</h2>
-    <p class="lead">What was happening? Who was there? Why does it matter to you? A sentence or two is plenty.</p>
+    <div class="msg error" id="mediaMsg"></div>
+
+    <!-- The story fields share this card: one submission, one submit button.
+         The wrapper keeps its old id — the page JS shows/hides it by id. -->
+    <div id="storyCard" style="margin-top:26px">
+    <h2 style="font-size:1.3rem">Now tell us about it</h2>
+    <p class="lead">What was happening? Which staff were there? Why does it matter to you? A sentence or two is plenty.</p>
 
     <div class="field">
       <label for="yourName">Your name <span class="req">(required)</span></label>
@@ -310,6 +327,7 @@
       <button type="button" class="mic-btn" data-mic="storyText"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5-3c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg> Speak instead</button>
     </div>
 
+    <p class="dim-note" style="margin-bottom:10px">Take one quick look before sharing — submissions can't be edited afterward.</p>
     <button class="btn big dark" id="shareBtn">Share this story</button>
 
     <!-- gentle no-photo nudge -->
@@ -322,13 +340,26 @@
     </div>
 
     <div class="msg error" id="storyMsg"></div>
+    </div><!-- /storyCard -->
+  </div><!-- /mediaCard -->
+
+  <!-- ===== Success (shown in step 2's place after a story is shared) ===== -->
+  <div class="card" id="successCard" style="display:none; text-align:center">
+    <div style="font-size:3rem; line-height:1; margin-bottom:8px">🎉</div>
+    <h2 id="successTitle">Thank you for sharing!</h2>
+    <p class="lead" id="successText" style="margin-bottom:20px">Your story is in. Our team will look it over before it appears on the site — we're grateful you took the time.</p>
+    <button class="btn" id="shareAnotherBtn">Add another photo</button>
+    <div class="nudge" id="successReferNudge" style="text-align:left; margin-top:22px">
+      <p><strong>One more thing</strong> — know someone else who served? Suggest them below and we'll invite them to share their own story.</p>
+      <div class="row"><button class="btn" id="successReferBtn">Suggest someone</button></div>
+    </div>
   </div>
 
   <!-- ===== Suggest someone (referrals, collapsed by default) ===== -->
   <div class="card collapse" id="referCard">
     <button class="collapse-head" id="referToggle" aria-expanded="false" aria-controls="referBody">
-      <span>&#128075; Know someone who served?
-        <span class="ch-sub">Add their name and we'll invite them to share their story</span>
+      <span class="step-head"><span class="step-num">3</span><span>Know someone who served?
+        <span class="ch-sub">Add their name and we'll invite them to share their story</span></span>
       </span>
       <span class="chev">&#9662;</span>
     </button>
@@ -401,14 +432,6 @@
       <button class="btn dark" id="finalSubmitBtn">Share my story</button>
     </div>
     <div class="msg error" id="finalMsg"></div>
-  </div>
-
-  <!-- ===== Success ===== -->
-  <div class="card" id="successCard" style="display:none; text-align:center">
-    <div style="font-size:3rem; line-height:1; margin-bottom:8px">🎉</div>
-    <h2 id="successTitle">Thank you for sharing!</h2>
-    <p class="lead" id="successText" style="margin-bottom:20px">Your story is in. Our team will look it over before it appears on the site — we're grateful you took the time.</p>
-    <button class="btn" id="shareAnotherBtn">Share another</button>
   </div>
 
 </main>
@@ -709,6 +732,25 @@ $("serviceToggle").addEventListener("click", () => {
   $("serviceCard").classList.toggle("open", !open);
 });
 
+/* Step 1 done state: flips the header to a checked look. Remembered per
+   device (localStorage) so a returning visitor sees "already done" instead
+   of wondering whether they need to redo it. Opening the card still shows
+   the form — adding MORE places later is perfectly fine (rows append). */
+function markServiceDone(fromEarlierVisit){
+  $("serviceCard").classList.add("step-done");
+  $("serviceStepNum").textContent = "✓";
+  $("serviceSub").textContent = fromEarlierVisit
+    ? "Looks like you've already added yours — nothing more to do here (unless you'd like to add more)."
+    : "Your service record is in — thank you!";
+  try{ localStorage.setItem("svcHistoryDone", "1"); }catch(e){ /* private mode etc. — copy fallback still works */ }
+}
+try{
+  if(localStorage.getItem("svcHistoryDone") === "1"){
+    markServiceDone(true);
+    $("serviceDone").style.display = "flex";   // visible if they open the card; form stays below it
+  }
+}catch(e){}
+
 /* =====================================================================
    SUGGEST SOMEONE (referrals, collapsible)
    Capture-only: rows go to the "Referrals" tab (Status = "New") via the
@@ -717,6 +759,22 @@ $("serviceToggle").addEventListener("click", () => {
    fields if the visitor filled them in.
 ===================================================================== */
 const REFER_MAX_ROWS = 10;
+let referralDoneThisVisit = false;   // hides the success screen's step-3 nudge once they've referred
+
+// Defensive reset: a browser restoring this page from its back/forward cache
+// brings back the post-submit DOM (the ✓ state) even though this LOOKS like a
+// fresh visit. Reset to the form so the thank-you never shows prematurely.
+window.addEventListener("pageshow", e => {
+  if(!e.persisted) return;
+  $("referDone").style.display = "none";
+  $("referForm").style.display = "";
+});
+
+$("successReferBtn").addEventListener("click", () => {
+  if($("referBody").hidden) $("referToggle").click();
+  $("referCard").scrollIntoView({behavior:"smooth", block:"center"});
+});
+
 $("referToggle").addEventListener("click", () => {
   const open = $("referToggle").getAttribute("aria-expanded") === "true";
   $("referToggle").setAttribute("aria-expanded", String(!open));
@@ -754,6 +812,8 @@ $("referSubmitBtn").addEventListener("click", async () => {
     if(!out.ok) throw new Error(out.error || "Couldn't save those names.");
     $("referForm").style.display = "none";
     $("referDone").style.display = "flex";
+    referralDoneThisVisit = true;
+    $("successReferNudge").style.display = "none";   // if the success screen is up, retire its nudge
   }catch(err){
     showMsg("referMsg", friendly(err.message));
   }finally{
@@ -824,6 +884,7 @@ $("submitServiceBtn").addEventListener("click", async () => {
     $("serviceForm").style.display = "none";
     $("servicePreview").style.display = "none";
     $("serviceDone").style.display = "flex";
+    markServiceDone(false);
   }catch(err){ showMsg("submitServiceMsg", friendly(err.message)); }
   finally{ btn.disabled = false; btn.textContent = "Submit my service history"; }
 });
@@ -1094,6 +1155,8 @@ $("finalSubmitBtn").addEventListener("click", async () => {
     $("storyCard").style.display = "none";
     $("mediaCard").style.display = "none";
     $("storyPreviewCard").style.display = "none";
+    // Nudge toward step 3 — unless they already suggested someone this visit.
+    $("successReferNudge").style.display = referralDoneThisVisit ? "none" : "block";
     $("successCard").style.display = "block";
     $("successCard").scrollIntoView({behavior:"smooth", block:"start"});
   }catch(err){ $("finalMsg").className = "msg error"; showMsg("finalMsg", friendly(err.message)); }
