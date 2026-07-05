@@ -18,6 +18,9 @@
  *        parseStoryText      — alumni "Share this story" (AI)
  *        addStoryFromPublic  — insert the story at the top of the Stories tab,
  *                              and auto-rename the uploaded file (Stage 2)
+ *        addReferrals        — names+emails of people a visitor suggests we
+ *                              invite → Referrals tab, Status "New" (capture
+ *                              only; a human sends the invites, no MailApp)
  *        vimeoThumb          — server-side Vimeo oEmbed → thumbnail URL (so the
  *                              share page can preview unlisted Vimeo videos too)
  *
@@ -151,6 +154,7 @@ const FORM_TAB     = "Stories";   // story/gallery rows (the website reads this 
                                   // Renamed from "Form Responses 2" — rename the
                                   // actual Sheet tab to "Stories" to match.
 const HIDDEN_TAB   = "Hidden People";  // Person Name | Hide Until — temporary site-wide hides
+const REFERRALS_TAB = "Referrals";     // people visitors suggest we invite (capture-only; humans send the invites)
 
 // Header row written when the Staff Service tab is first created. Order matters:
 // the last two columns are internal provenance and are never shown on the site.
@@ -180,6 +184,7 @@ function doPost(e){
       case "uploadStoryMedia":    return handleUploadStoryMedia(body);
       case "parseStoryText":      return handleParseStoryText(body);
       case "addStoryFromPublic":  return handleAddStoryFromPublic(body);
+      case "addReferrals":        return handleAddReferrals(body);
       case "vimeoThumb":          return handleVimeoThumb(body);
       // ---- Read-only data endpoints (site password gate) ----
       case "getSiteData":   return handleGetSiteData(body);
@@ -196,7 +201,7 @@ function doPost(e){
 function doGet(){
   return json({ ok:true, service:"cru-hs-60th",
     actions:["saveSettings","parseNotes","addStints","parseHistory","addHistoryEvents",
-             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","vimeoThumb",
+             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","addReferrals","vimeoThumb",
              "getSiteData","getPublicData","addHiddenPerson"] });
 }
 
@@ -852,6 +857,54 @@ function handleAddStoryFromPublic(body){
  * Public, no PIN; only accepts vimeo.com URLs. Two callers:
  *   - share.html (input thumbnails): uses `thumb`, falls back to v2 JSONP.
  *   - index.html (story pop-out): uses `embeddable` to decide embed vs card. */
+/* ---- addReferrals: names visitors suggest we invite (capture-only) ----
+   PUBLIC (no PIN), like the other share.html actions — light abuse guards
+   instead. A human works the Referrals tab by hand (Status: New → Invited →
+   Submitted); deliberately NO automated email here. */
+function handleAddReferrals(body){
+  const referrer = clean(body.referrer).slice(0, 200);
+  let referrals = Array.isArray(body.referrals) ? body.referrals : [];
+  if(!referrals.length) return json({ ok:false, error:"Add at least one person." });
+  referrals = referrals.slice(0, 10);   // abuse guard: cap one submission's size
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const rows = [];
+  const now = new Date();
+  for(var i = 0; i < referrals.length; i++){
+    const name = clean(referrals[i].name).slice(0, 200);
+    const email = clean(referrals[i].email).slice(0, 200);
+    if(!name && !email) continue;                 // skip blank rows
+    if(!name || !email) return json({ ok:false, error:"Each person needs both a name and an email." });
+    if(!emailOk.test(email)) return json({ ok:false, error:'"' + email + '" doesn\'t look like an email address.' });
+    rows.push({ name: name, email: email });
+  }
+  if(!rows.length) return json({ ok:false, error:"Add at least one person." });
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(REFERRALS_TAB);
+  if(!sheet){
+    sheet = ss.insertSheet(REFERRALS_TAB);
+    sheet.appendRow(["Timestamp", "Referrer Name", "Referred Name", "Referred Email", "Status"]);
+  }
+
+  // Match columns by header name (never by position), same as every other tab.
+  const M = colMapper_(sheet);
+  const cTime  = M.ensureCol("timestamp", "Timestamp");
+  const cRefBy = M.ensureCol("referrer",  "Referrer Name");
+  const cName  = M.ensureCol("referred name",  "Referred Name");
+  const cEmail = M.ensureCol("referred email", "Referred Email");
+  const cStat  = M.ensureCol("status", "Status");
+  const width = M.headers.length;
+
+  const out = rows.map(function(r){
+    const row = []; for(var i = 0; i < width; i++) row.push("");
+    row[cTime] = now; row[cRefBy] = referrer; row[cName] = r.name; row[cEmail] = r.email; row[cStat] = "New";
+    return row;
+  });
+  sheet.getRange(sheet.getLastRow() + 1, 1, out.length, width).setValues(out);
+  return json({ ok: true, added: out.length });
+}
+
 function handleVimeoThumb(body){
   try{
     var url = String(body.url || "").trim();

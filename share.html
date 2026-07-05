@@ -144,6 +144,9 @@
   td.del{width:40px; text-align:center;}
   .row-del{background:none; border:none; color:var(--vermilion); font-size:1.5rem; line-height:1; padding:4px 8px; min-height:auto;}
   .tbl-actions{display:flex; gap:12px; align-items:center; margin-top:16px; flex-wrap:wrap;}
+  /* Referrals table is only two columns — let it fit the card without side-scroll. */
+  #referTable{min-width:0;}
+  #referCard.open .collapse-head{border-radius:10px 10px 0 0;}
 
   /* ---------- Nudge ---------- */
   .nudge{display:none; margin-top:16px; padding:18px 20px; background:var(--lemon); border:1px solid var(--yellow); border-radius:10px;}
@@ -319,6 +322,42 @@
     </div>
 
     <div class="msg error" id="storyMsg"></div>
+  </div>
+
+  <!-- ===== Suggest someone (referrals, collapsed by default) ===== -->
+  <div class="card collapse" id="referCard">
+    <button class="collapse-head" id="referToggle" aria-expanded="false" aria-controls="referBody">
+      <span>&#128075; Know someone who served?
+        <span class="ch-sub">Add their name and we'll invite them to share their story</span>
+      </span>
+      <span class="chev">&#9662;</span>
+    </button>
+    <div class="collapse-body" id="referBody" hidden>
+
+      <div class="service-done" id="referDone">✓ Thank you! We'll reach out and invite them.</div>
+
+      <div id="referForm">
+        <p class="lead" style="margin-bottom:6px">Who else should be part of the Legacy archive? Staff, volunteers — anyone whose story belongs here.</p>
+        <p class="dim-note" style="margin-bottom:14px">We'll reach out and invite them to share their story — that's all their info is used for.</p>
+
+        <div class="preview-wrap">
+          <table id="referTable">
+            <thead><tr><th>Name</th><th>Email</th></tr></thead>
+            <tbody id="referRows">
+              <tr><td><input type="text" autocomplete="off"></td><td><input type="text" inputmode="email" autocomplete="off"></td></tr>
+              <tr><td><input type="text" autocomplete="off"></td><td><input type="text" inputmode="email" autocomplete="off"></td></tr>
+              <tr><td><input type="text" autocomplete="off"></td><td><input type="text" inputmode="email" autocomplete="off"></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tbl-actions">
+          <button class="btn ghost" id="referAddBtn">+ Add another person</button>
+          <button class="btn dark" id="referSubmitBtn">Suggest them</button>
+        </div>
+        <div class="msg error" id="referMsg"></div>
+      </div>
+
+    </div>
   </div>
 
   <!-- ===== Editable story preview ===== -->
@@ -614,6 +653,7 @@ document.addEventListener("keydown", e => { if(e.key === "Escape"){ closeVideo()
 ===================================================================== */
 function hasProgress(){
   if(["serviceName","serviceText","yourName","yourEmail","storyText"].some(id => $(id).value.trim())) return true;
+  if([...document.querySelectorAll("#referRows input")].some(i => i.value.trim())) return true;
   if(storyMedia) return true;
   return false;
 }
@@ -667,6 +707,58 @@ $("serviceToggle").addEventListener("click", () => {
   $("serviceToggle").setAttribute("aria-expanded", String(!open));
   $("serviceBody").hidden = open;
   $("serviceCard").classList.toggle("open", !open);
+});
+
+/* =====================================================================
+   SUGGEST SOMEONE (referrals, collapsible)
+   Capture-only: rows go to the "Referrals" tab (Status = "New") via the
+   Apps Script; a human reviews the tab and sends invites manually — no
+   automated email. Referrer identity is reused from the form's own name
+   fields if the visitor filled them in.
+===================================================================== */
+const REFER_MAX_ROWS = 10;
+$("referToggle").addEventListener("click", () => {
+  const open = $("referToggle").getAttribute("aria-expanded") === "true";
+  $("referToggle").setAttribute("aria-expanded", String(!open));
+  $("referBody").hidden = open;
+  $("referCard").classList.toggle("open", !open);
+});
+
+$("referAddBtn").addEventListener("click", () => {
+  $("referRows").insertAdjacentHTML("beforeend",
+    '<tr><td><input type="text" autocomplete="off"></td><td><input type="text" inputmode="email" autocomplete="off"></td></tr>');
+  if($("referRows").children.length >= REFER_MAX_ROWS) $("referAddBtn").style.display = "none";
+});
+
+function collectReferrals(){
+  return [...$("referRows").querySelectorAll("tr")].map(tr => {
+    const inputs = tr.querySelectorAll("input");
+    return { name: inputs[0].value.trim(), email: inputs[1].value.trim() };
+  }).filter(r => r.name || r.email);   // fully blank rows are simply skipped
+}
+
+$("referSubmitBtn").addEventListener("click", async () => {
+  hideMsg("referMsg");
+  const rows = collectReferrals();
+  if(!rows.length){ showMsg("referMsg", "Add at least one person — a name and an email."); return; }
+  const half = rows.find(r => !r.name || !r.email);
+  if(half){ showMsg("referMsg", "Each person needs both a name and an email — one of your rows is missing one."); return; }
+  const badEmail = rows.find(r => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email));
+  if(badEmail){ showMsg("referMsg", `"${badEmail.email}" doesn't look like an email address — mind double-checking it?`); return; }
+
+  const referrer = $("yourName").value.trim() || $("serviceName").value.trim();
+  const btn = $("referSubmitBtn");
+  btn.disabled = true; btn.textContent = "Sending…";
+  try{
+    const out = await postAction({ action:"addReferrals", referrer, referrals: rows });
+    if(!out.ok) throw new Error(out.error || "Couldn't save those names.");
+    $("referForm").style.display = "none";
+    $("referDone").style.display = "flex";
+  }catch(err){
+    showMsg("referMsg", friendly(err.message));
+  }finally{
+    btn.disabled = false; btn.textContent = "Suggest them";
+  }
 });
 
 $("mapBtn").addEventListener("click", async () => {
