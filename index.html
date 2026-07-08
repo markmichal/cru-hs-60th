@@ -428,6 +428,22 @@
   }
   .footer-correction-btn:hover { background: var(--yellow); color: var(--black); }
   .footer-note { color: var(--graphite); font-size: 0.75rem; margin-top: 26px; }
+  /* Contact us (footer) */
+  .footer-contact { margin-top: 30px; padding-top: 26px; border-top: 1px solid rgba(255,255,255,0.12); }
+  .footer-contact h4 { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--white); }
+  .footer-contact p { color: var(--gray); max-width: 420px; margin: 6px auto 16px; font-size: 0.82rem; line-height: 1.5; }
+  .contact-form { max-width: 420px; margin: 0 auto; text-align: left; display: flex; flex-direction: column; gap: 10px; }
+  .contact-form input, .contact-form textarea {
+    width: 100%; background: var(--white); border: 1px solid var(--gray); border-radius: 4px;
+    padding: 11px 12px; font-family: 'Inter', sans-serif; font-size: 0.92rem; color: var(--black); }
+  .contact-form textarea { min-height: 96px; resize: vertical; line-height: 1.5; }
+  .contact-form input:focus, .contact-form textarea:focus { outline: 2px solid var(--yellow); outline-offset: 1px; }
+  .contact-form .contact-send { background: var(--yellow); color: var(--black); border: none; border-radius: 4px;
+    padding: 12px 26px; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 0.95rem; cursor: pointer; align-self: center; }
+  .contact-form .contact-send:disabled { opacity: 0.55; cursor: default; }
+  .contact-msg { max-width: 420px; margin: 12px auto 0; font-size: 0.85rem; line-height: 1.5; display: none; }
+  .contact-msg.err { color: var(--lemon); }
+  .contact-ok { display: none; color: var(--white); font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.98rem; max-width: 420px; margin: 6px auto 0; }
 
   /* ============ MAP (top of Locations view) ============ */
   #mapEl { height: 460px; border-radius: 6px; border: 1px solid var(--gray); background: var(--soft); margin-top: 20px; }
@@ -618,6 +634,18 @@
     <h4 data-set="correctionHeading">See something to fix?</h4>
     <p data-set="correctionText">Wrong date, misspelled name, or a photo in the wrong place? Tell us.</p>
     <a class="footer-correction-btn" href="#" id="footerCorrection" data-set="correctionCtaLabel">Suggest a correction</a>
+  </div>
+  <div class="footer-contact">
+    <h4>Contact us</h4>
+    <p>Questions, corrections you'd rather send privately, or anything else? Send us a note.</p>
+    <div class="contact-form" id="contactForm">
+      <input type="text" id="contactName" placeholder="Your name" autocomplete="name">
+      <input type="text" id="contactEmail" placeholder="Your email" autocomplete="email" inputmode="email">
+      <textarea id="contactMessage" placeholder="Your message"></textarea>
+      <button class="contact-send" id="contactSend">Send message</button>
+    </div>
+    <div class="contact-msg" id="contactMsg"></div>
+    <div class="contact-ok" id="contactOk">✓ Thanks — your message is on its way. We'll be in touch.</div>
   </div>
   <div class="footer-note" data-set="footerNote">Cru High School Ministry &middot; 60th Anniversary Project</div>
 </footer>
@@ -911,6 +939,36 @@ const storySubmitUrl = () => {
   return (!u || /docs\.google\.com\/forms/i.test(u)) ? "share.html" : u;
 };
 const correctionUrl = () => SETTINGS.correctionFormUrl || CONFIG.CORRECTION_FORM_URL;
+
+/* Footer "Contact us" — posts name/email/message to the Apps Script, which
+   emails it to the owner (reply-to = the sender). Server validates too. */
+async function sendContactMessage(){
+  const name = $("contactName").value.trim();
+  const email = $("contactEmail").value.trim();
+  const message = $("contactMessage").value.trim();
+  const msg = $("contactMsg");
+  function fail(text){ msg.textContent = text; msg.className = "contact-msg err"; msg.style.display = "block"; }
+  if(!name || !email || !message){ fail("Please add your name, email, and a message."); return; }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fail("Please enter a valid email, like you@example.com."); return; }
+
+  const btn = $("contactSend");
+  btn.disabled = true; btn.textContent = "Sending…"; msg.style.display = "none";
+  try{
+    const res = await fetch(CONFIG.SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "sendContactEmail", name, email, message })
+    });
+    const out = await res.json();
+    if(!out.ok) throw new Error(out.error || "Couldn't send your message.");
+    $("contactForm").style.display = "none";
+    $("contactOk").style.display = "block";
+  }catch(err){
+    fail("Sorry — " + err.message + " Please try again in a bit.");
+  }finally{
+    btn.disabled = false; btn.textContent = "Send message";
+  }
+}
 
 /* ============ SETTINGS: defaults, apply, load ============ */
 function settingDefaults(){
@@ -1984,6 +2042,7 @@ document.addEventListener("click", e => {
   if(e.target.id === "settingsOverlay"){ $("settingsOverlay").classList.remove("open"); return; }
   if(e.target.id === "submitBtn" || e.target.id === "footerSubmit"){ e.preventDefault(); const u = storySubmitUrl(); if(/^https?:\/\//i.test(u)) window.open(u, "_blank"); else window.location.href = u; return; }
   if(e.target.id === "footerCorrection"){ e.preventDefault(); window.open(correctionUrl(), "_blank"); return; }
+  if(e.target.id === "contactSend"){ e.preventDefault(); sendContactMessage(); return; }
   if(e.target.id === "editDot"){ editing ? exitEditMode() : enterEditMode(); return; }
   if(e.target.id === "exitEditBtn"){ exitEditMode(); return; }
   if(e.target.id === "openSettingsBtn"){ openSettings(); return; }

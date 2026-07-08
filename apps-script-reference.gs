@@ -21,6 +21,9 @@
  *        addReferrals        — names+emails of people a visitor suggests we
  *                              invite → Referrals tab, Status "New" (capture
  *                              only; a human sends the invites, no MailApp)
+ *        sendContactEmail    — footer "Contact us" form → MailApp email to the
+ *                              owner (reply-to = sender). Needs the mail scope
+ *                              authorized ONCE (run authorizeContactEmail).
  *        vimeoThumb          — server-side Vimeo oEmbed → thumbnail URL (so the
  *                              share page can preview unlisted Vimeo videos too)
  *
@@ -185,6 +188,7 @@ function doPost(e){
       case "parseStoryText":      return handleParseStoryText(body);
       case "addStoryFromPublic":  return handleAddStoryFromPublic(body);
       case "addReferrals":        return handleAddReferrals(body);
+      case "sendContactEmail":    return handleSendContactEmail(body);
       case "vimeoThumb":          return handleVimeoThumb(body);
       // ---- Read-only data endpoints (site password gate) ----
       case "getSiteData":   return handleGetSiteData(body);
@@ -201,7 +205,7 @@ function doPost(e){
 function doGet(){
   return json({ ok:true, service:"cru-hs-60th",
     actions:["saveSettings","parseNotes","addStints","parseHistory","addHistoryEvents",
-             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","addReferrals","vimeoThumb",
+             "parseServiceText","addServiceFromPublic","uploadStoryMedia","parseStoryText","addStoryFromPublic","addReferrals","sendContactEmail","vimeoThumb",
              "getSiteData","getPublicData","addHiddenPerson"] });
 }
 
@@ -903,6 +907,58 @@ function handleAddReferrals(body){
   });
   sheet.getRange(sheet.getLastRow() + 1, 1, out.length, width).setValues(out);
   return json({ ok: true, added: out.length });
+}
+
+/* ---- sendContactEmail: the footer "Contact us" form -> email to the owner ----
+   PUBLIC (no PIN). Emails the message to CONTACT_TO using MailApp, with the
+   visitor's own address as reply-to so the owner can just hit Reply. The body
+   leads with a line identifying the site + a link, so the owner can jump
+   straight to the archive. Capture-only guards: required fields, email format,
+   length caps. NOTE: MailApp needs a mail scope the script didn't previously
+   use — the owner must authorize it ONCE (run authorizeContactEmail from the
+   editor, or approve the prompt on first send). */
+var CONTACT_TO = "mark.michal@cru.org";
+var SITE_URL = "https://highschoollegacy.crutastic.com";
+
+function handleSendContactEmail(body){
+  var name = clean(body.name).slice(0, 200);
+  var email = clean(body.email).slice(0, 200);
+  var message = clean(body.message).slice(0, 5000);
+  if(!name || !email || !message) return json({ ok:false, error:"Please fill in your name, email, and a message." });
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ ok:false, error:'"' + email + '" doesn\'t look like an email address.' });
+
+  var subject = "Cru HS Legacy — message from " + name;
+  var lines = [
+    "This message was sent through the Cru High School Legacy website.",
+    "Visit the site: " + SITE_URL,
+    "",
+    "----------------------------------------",
+    "From:    " + name,
+    "Email:   " + email,
+    "----------------------------------------",
+    "",
+    message
+  ];
+  try{
+    MailApp.sendEmail({
+      to: CONTACT_TO,
+      replyTo: email,          // owner hits Reply → goes to the visitor
+      name: "Cru HS Legacy Site",
+      subject: subject,
+      body: lines.join("\n")
+    });
+  }catch(err){
+    return json({ ok:false, error:"Couldn't send the message right now. Please try again later." });
+  }
+  return json({ ok:true });
+}
+
+// Run this ONCE from the Apps Script editor to grant the send-email permission
+// (select authorizeContactEmail in the toolbar, click Run, approve the prompt).
+// Sends a tiny confirmation to the owner so you also see it worked end-to-end.
+function authorizeContactEmail(){
+  MailApp.sendEmail(CONTACT_TO, "Cru HS Legacy — contact form is ready",
+    "Email permission is authorized. The Contact us form on the site can now reach your inbox.");
 }
 
 function handleVimeoThumb(body){
