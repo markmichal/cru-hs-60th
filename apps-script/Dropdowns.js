@@ -4,11 +4,14 @@
    On every tab that has the columns (master timeline + form responses;
    Site Settings is skipped automatically):
 
-   • "Approved" and "On Timeline": TRUE/FALSE dropdowns,
-     TRUE = green, FALSE = red, blanks in filled rows set to FALSE.
-   • "Type": dropdown with Photo / Flyer / Story / Event / Milestone,
-     Milestone cells highlighted light orange. Blanks left blank
-     (the website displays a blank type as "Photo").
+   • "Approved", "On Timeline", "Overview Pick", "Featured":
+     TRUE/FALSE dropdowns, TRUE = green, FALSE = red, blanks in
+     filled rows set to FALSE. (Only applied to columns that exist —
+     add an "Overview Pick" column to the master + Stories tabs to use it.)
+   • "Type": dropdown with Milestone / Photo / Flyer / Story / Video,
+     Milestone cells highlighted light orange. "Event" is intentionally
+     NOT a Type (it's a grouping tag, set in the separate Event column).
+     Blanks left blank (the website displays a blank type as "Photo").
 
    HOW TO RUN:
    1. Spreadsheet → Extensions → Apps Script
@@ -35,7 +38,7 @@ function setupReviewDropdowns() {
     const newRules = [];
 
     /* ----- Approved + On Timeline: TRUE/FALSE, green/red ----- */
-    ["approved", "timeline"].forEach(function (key) {
+    ["approved", "timeline", "overview", "featured"].forEach(function (key) {
       const col = findCol(key);
       if (!col) return;
       const range = sheet.getRange(2, col, numRows, 1);
@@ -69,12 +72,12 @@ function setupReviewDropdowns() {
                  sheet.getRange(1, col).getValue() + "\"");
     });
 
-    /* ----- Type: five-option dropdown, Milestone highlighted ----- */
+    /* ----- Type: Milestone / Photo / Flyer / Story / Video (Milestone highlighted) ----- */
     const typeCol = findCol("type");
     if (typeCol) {
       const typeRange = sheet.getRange(2, typeCol, numRows, 1);
       typeRange.setDataValidation(SpreadsheetApp.newDataValidation()
-        .requireValueInList(["Photo", "Flyer", "Story", "Event", "Milestone"], true)
+        .requireValueInList(["Milestone", "Photo", "Flyer", "Story", "Video"], true)
         .setAllowInvalid(true).build());
 
       newRules.push(SpreadsheetApp.newConditionalFormatRule()
@@ -91,5 +94,5 @@ function setupReviewDropdowns() {
     if (newRules.length) sheet.setConditionalFormatRules(newRules);
   });
 
-  Logger.log("Done. Check the Approved, On Timeline, and Type columns.");
+  Logger.log("Done. Check the Approved, On Timeline, Overview Pick, Featured, and Type columns.");
 }

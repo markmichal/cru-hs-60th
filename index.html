@@ -81,6 +81,9 @@
     align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   }
   body.editing .edit-banner { display: flex; }
+  /* Crowded-Overview nudge — only ever visible to an editor (PIN 6060). */
+  .overview-warn { display: none; }
+  body.editing .overview-warn.has-warn { display: block; background: var(--lemon); border: 1px solid var(--yellow); border-radius: 8px; padding: 10px 14px; margin: 0 0 14px; font-size: 0.9rem; line-height: 1.45; color: var(--black); }
   .edit-banner .eb-actions { display: flex; gap: 8px; }
   .eb-btn { background: var(--black); color: var(--white); border: none; border-radius: 3px; padding: 7px 14px; font-weight: 700; font-size: 0.8rem; }
   .eb-btn.ghost { background: transparent; color: var(--black); text-decoration: underline; }
@@ -553,6 +556,7 @@
       <h3 id="eraTitle"></h3>
       <div class="era-count" id="eraCount"></div>
     </div>
+    <div class="overview-warn" id="overviewWarn"></div>
     <div class="timeline-wrap" id="timelineWrap">
       <div class="timeline-track" id="timelineTrack"></div>
     </div>
@@ -753,6 +757,7 @@ const CONFIG = {
   STAFF_TAB: "Staff Service",
   ERAS: [],
   MAX_TRACK: 20,
+  OVERVIEW_SOFT_CAP: 20,   // Overview timeline shows ALL hand-picked items; past this count the editor sees a gentle "getting crowded" nudge (no hard limit)
   HERO_MAX: 7,        // max photos in the top slider (editable in the hidden editor)
   HERO_SECONDS: 6     // seconds each slide shows before advancing
 };
@@ -1009,7 +1014,7 @@ function rowsToItems(json){
     title:idx("title"), year:idx("year"), loc:idx("location"), people:idx("people"),
     type:idx("type"), story:idx("story"), photo:idx("photo"),
     bl:idx("button label"), bu:idx("button url"), event:idx("event"),
-    approved:idx("approved"), tl:idx("timeline"), fe:idx("featured")
+    approved:idx("approved"), tl:idx("timeline"), fe:idx("featured"), ovp:idx("overview")
   };
   const val = (row,i) => (i>=0 && row.c && row.c[i]) ? (row.c[i].v ?? "") : "";
   // First non-empty value across any of the video columns
@@ -1033,7 +1038,8 @@ function rowsToItems(json){
     buttonUrl: String(val(r,I.bu)),
     approved: val(r,I.approved) === true || String(val(r,I.approved)).toUpperCase() === "TRUE",
     onTimeline: val(r,I.tl) === true || String(val(r,I.tl)).toUpperCase() === "TRUE",
-    featured: val(r,I.fe) === true || String(val(r,I.fe)).toUpperCase() === "TRUE"
+    featured: val(r,I.fe) === true || String(val(r,I.fe)).toUpperCase() === "TRUE",
+    overviewPick: val(r,I.ovp) === true || String(val(r,I.ovp)).toUpperCase() === "TRUE"
   })).filter(d => d.title && d.approved);
 }
 
@@ -1120,10 +1126,17 @@ function rowsToStints(json){
 function timelineItems(){
   const pool = DATA.filter(d => d.year);
   if(currentEra === null){
+    // OVERVIEW (the all-history headline strip): show the team's hand-picked
+    // items (the "Overview Pick" column), in chronological order, with NO cap —
+    // a curated set can be as long as they want. If nobody has picked any yet
+    // (e.g. before the column is added/used), fall back to the old behavior so
+    // the strip is never empty: On Timeline rows, oldest-first, capped at 20.
+    const picked = pool.filter(d => d.overviewPick);
+    if(picked.length) return picked.sort((a,b)=>a.year-b.year);
     return pool.filter(d => d.onTimeline).sort((a,b)=>a.year-b.year).slice(0, CONFIG.MAX_TRACK);
   }
   const inEra = pool.filter(d => eraOf(d.year) === currentEra);
-  const priority = inEra.filter(d => d.onTimeline || d.type === "Milestone");
+  const priority = inEra.filter(d => d.onTimeline || d.overviewPick || d.type === "Milestone");
   const rest = inEra.filter(d => !priority.includes(d));
   return priority.concat(rest).slice(0, CONFIG.MAX_TRACK).sort((a,b)=>a.year-b.year);
 }
@@ -1179,6 +1192,17 @@ function renderTimeline(){
   } else {
     $("eraHeading").style.display = "none";
   }
+
+  // Editor-only nudge when the hand-picked Overview is getting crowded. There's
+  // no hard cap — every picked item still shows; this just flags it. Gated to
+  // edit mode via CSS (body.editing), so regular visitors never see it.
+  const warn = $("overviewWarn");
+  const picked = DATA.filter(d => d.overviewPick).length;
+  const crowded = currentEra === null && picked > CONFIG.OVERVIEW_SOFT_CAP;
+  warn.classList.toggle("has-warn", crowded);
+  warn.textContent = crowded
+    ? `Heads-up: ${picked} items are picked for the main timeline. That's more than the ~${CONFIG.OVERVIEW_SOFT_CAP} that reads cleanly, so it's getting crowded — they'll all still show, this is just a nudge.`
+    : "";
 }
 
 /* ============ EVENT GROUPING ============ */
