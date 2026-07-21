@@ -404,6 +404,13 @@
   .img-lightbox img { max-width: 92vw; max-height: 82vh; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
   .img-lightbox .lb-close { position: absolute; top: 14px; right: 16px; width: 40px; height: 40px; background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 50%; font-size: 1.4rem; line-height: 1; cursor: pointer; }
   .img-lightbox .lb-full { color: #fff; font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.85rem; text-decoration: underline; }
+  /* Video lightbox — embedded player overlay (welcome video, etc.) */
+  .video-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 600; align-items: center; justify-content: center; padding: 24px; }
+  .video-lightbox.open { display: flex; }
+  .video-lightbox .vlb-inner { position: relative; width: 100%; max-width: 960px; }
+  .video-lightbox .vlb-frame { position: relative; width: 100%; padding-top: 56.25%; background: #000; border-radius: 8px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+  .video-lightbox .vlb-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .video-lightbox .lb-close { position: absolute; top: -48px; right: 0; width: 40px; height: 40px; background: rgba(255,255,255,0.18); border: none; color: #fff; border-radius: 50%; font-size: 1.4rem; line-height: 1; cursor: pointer; }
   .modal-close { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; background: rgba(0,0,0,0.55); border: none; color: var(--white); border-radius: 50%; font-size: 1.1rem; line-height: 1; z-index: 2; }
 
   /* Settings form */
@@ -547,7 +554,7 @@
       <p data-set="heroText">From Student Venture to Cru High School — explore the moments, the people, and the places. Then add your own photos, flyers, and stories to the collection.</p>
       <!-- Welcome video button. To change the video later, edit the href. -->
       <div class="hero-video-wrap">
-        <a class="hero-video-btn" href="https://youtu.be/0cfTnGuBrKs" target="_blank" rel="noopener"><span class="pv-ic">▶</span> Watch the welcome video</a>
+        <a class="hero-video-btn" id="heroVideoBtn" href="https://youtu.be/0cfTnGuBrKs" target="_blank" rel="noopener"><span class="pv-ic">▶</span> Watch the welcome video</a>
       </div>
       <img class="hero-image" id="heroImage" alt="" style="display:none">
       <div><div class="data-status" id="dataStatus">Loading&hellip;</div></div>
@@ -693,6 +700,13 @@
   <button class="lb-close" data-close="imgLightbox" aria-label="Close">&times;</button>
   <img id="lbImg" alt="">
   <a id="lbFull" class="lb-full" target="_blank" rel="noopener">View full image →</a>
+</div>
+
+<div class="video-lightbox" id="videoLightbox">
+  <div class="vlb-inner">
+    <button class="lb-close" data-close="videoLightbox" aria-label="Close">&times;</button>
+    <div class="vlb-frame" id="videoLightboxFrame"></div>
+  </div>
 </div>
 
 <!-- SETTINGS MODAL -->
@@ -877,6 +891,22 @@ function openLightbox(url){
 function closeLightbox(){
   $("imgLightbox").classList.remove("open");
   $("lbImg").src = "";
+}
+
+// Video lightbox — embed a YouTube/Vimeo/Drive link in an overlay player
+// instead of sending the visitor off-site. Autoplays on open; clearing the
+// iframe on close stops playback (and its audio).
+function openVideoLightbox(url){
+  const vid = videoInfo(url);
+  const src = (vid && vid.embed) ? vid.embed : url;
+  const sep = src.includes("?") ? "&" : "?";
+  $("videoLightboxFrame").innerHTML =
+    `<iframe src="${esc(src)}${sep}autoplay=1&rel=0" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+  $("videoLightbox").classList.add("open");
+}
+function closeVideoLightbox(){
+  $("videoLightbox").classList.remove("open");
+  $("videoLightboxFrame").innerHTML = "";
 }
 
 /* Turn a YouTube, Vimeo, or Google Drive video LINK into an embeddable player
@@ -2072,6 +2102,9 @@ document.addEventListener("click", e => {
 
   if(e.target.id === "backToPeople"){ $("peopleIndex").style.display="block"; $("personProfile").style.display="none"; return; }
   if(e.target.id === "backToLocations"){ $("locationsIndex").style.display="block"; $("locationDetail").style.display="none"; setTimeout(renderMap, 60); return; }
+  const heroVid = e.target.closest("#heroVideoBtn");
+  if(heroVid){ e.preventDefault(); openVideoLightbox(heroVid.getAttribute("href")); return; }
+  if(e.target.dataset.close === "videoLightbox" || e.target.id === "videoLightbox"){ closeVideoLightbox(); return; }  // close button OR backdrop; clears the iframe
   if(e.target.dataset.close){ if(e.target.dataset.close==="modalOverlay") closeModal(); else if(e.target.dataset.close==="imgLightbox") closeLightbox(); else $(e.target.dataset.close).classList.remove("open"); return; }
   if(e.target.id === "imgLightbox"){ closeLightbox(); return; }   // backdrop click
   if(e.target.id === "modalOverlay"){ closeModal(); return; }
@@ -2093,6 +2126,7 @@ $("peopleSearch").addEventListener("input", e => { filters.peopleQ = e.target.va
 $("locationSearch").addEventListener("input", e => { filters.locationQ = e.target.value; renderLocations(); });
 document.addEventListener("keydown", e => {
   if(e.key === "Escape"){
+    if($("videoLightbox").classList.contains("open")){ closeVideoLightbox(); return; }
     if($("imgLightbox").classList.contains("open")){ closeLightbox(); return; }   // lightbox first, pop-out stays open
     closeModal(); $("settingsOverlay").classList.remove("open");
   }
