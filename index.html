@@ -34,6 +34,7 @@
     --card: #FFFFFF;
     --card-border: #DEDEDE;
     --soft: #F7F6F2;
+    --timeline-band: #EAEAE7;   /* the timeline strip's background — light warm gray, so the white cards stand out */
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html { scroll-behavior: smooth; }
@@ -168,7 +169,7 @@
   .era-heading h3 { font-family: 'Sora', sans-serif; font-weight: 800; font-size: 2rem; letter-spacing: -0.02em; color: var(--black); }
   .era-heading .era-count { color: var(--graphite); font-size: 0.85rem; margin-top: 2px; }
 
-  .timeline-wrap { position: relative; overflow-x: auto; padding: 30px 0 20px; cursor: grab; background: var(--soft); border-radius: 8px; }
+  .timeline-wrap { position: relative; overflow-x: auto; padding: 30px 0 20px; cursor: grab; background: var(--timeline-band); border-radius: 8px; }
   .timeline-wrap.dragging { cursor: grabbing; }
   .timeline-track { display: flex; position: relative; padding: 40px 60px; min-width: max-content; }
   .timeline-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; background: var(--yellow); border-radius: 2px; }
@@ -197,7 +198,7 @@
   /* year marker + tick at the bottom of each card's column */
   .t-tick { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; z-index: 1; }
   .t-tick::before { content: ''; width: 2px; height: 12px; background: var(--gray); border-radius: 1px; }
-  .t-tick span { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.82rem; color: var(--graphite); background: var(--soft); padding: 0 4px; }
+  .t-tick span { font-family: 'Sora', sans-serif; font-weight: 700; font-size: 0.82rem; color: var(--graphite); background: var(--timeline-band); padding: 0 4px; }
   .t-event.milestone .t-tick::before { background: var(--orange); height: 16px; }
   .t-event.milestone .t-tick span { color: var(--vermilion); }
   .timeline-hint { text-align: center; color: var(--graphite); font-size: 0.8rem; padding-top: 10px; }
