@@ -82,7 +82,7 @@
     align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   }
   body.editing .edit-banner { display: flex; }
-  /* Crowded-Overview nudge — only ever visible to an editor (PIN 6060). */
+  /* Crowded-Overview nudge — only ever visible to an editor (hidden-dot PIN). */
   .overview-warn { display: none; }
   body.editing .overview-warn.has-warn { display: block; background: var(--lemon); border: 1px solid var(--yellow); border-radius: 8px; padding: 10px 14px; margin: 0 0 14px; font-size: 0.9rem; line-height: 1.45; color: var(--black); }
   .edit-banner .eb-actions { display: flex; gap: 8px; }
@@ -758,8 +758,9 @@
    SCRIPT_URL  Apps Script Web App URL — required for the hidden editor
                to save page text to the Sheet. Until set, edits are
                temporary (this browser session only).
-   EDIT_PIN    PIN for the hidden editor dot (bottom-left corner).
-               Change it here AND at the top of the Apps Script.
+   (Editor PIN: lives ONLY in the Apps Script — EDIT_PIN at the top of
+               apps-script/Code.js. The dot prompts for it and the server
+               verifies; nothing here needs to know the actual value.)
    ERAS        Leave [] for automatic decades. For named eras:
                [ {name:"Founding Years", start:1965, end:1982}, ... ]
    MAX_TRACK   Max cards on any one timeline strip.
@@ -775,8 +776,9 @@ const CONFIG = {
   FORM_URL: "share.html",
   CORRECTION_FORM_URL: "https://docs.google.com/forms/d/e/1FAIpQLSd7Axq15m49v4jwQYCXCyPyc9KgMf-lC2sI99vLltlC1FyDmw/viewform",
   SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwNrxCjE2WFOLNxkwVzNblEeRN2q7qyVbz_AqAexL1ho5U0GtPX6meS62fhcCN5wu0y/exec",
-  EDIT_PIN: "6060",
-  INTAKE_PIN: "1951",
+  // Editor + intake PINs: live ONLY in the Apps Script (EDIT_PIN / INTAKE_PIN
+  // at the top of apps-script/Code.js) — the server verifies every gated
+  // action, so the values never appear in this public file.
   // Site viewing password: lives ONLY in the Apps Script (SITE_PIN at the top
   // of apps-script/Code.js) — the server checks it and the ON/OFF toggle in
   // one call, so nothing here needs to know the actual value.
@@ -1822,10 +1824,38 @@ function openEventModal(name){
 }
 
 /* ============ PAGE EDITOR ============ */
-function enterEditMode(){
-  const pin = prompt("Editor PIN:");
-  if(pin === null) return;
-  if(pin !== CONFIG.EDIT_PIN){ alert("Incorrect PIN."); return; }
+// The editor PIN is never stored in this file — the server verifies it.
+// A correct entry is remembered for the rest of this browser tab's session.
+let EDITOR_PIN = sessionStorage.getItem("editPin") || "";
+function forgetEditorPin(){
+  EDITOR_PIN = "";
+  sessionStorage.removeItem("editPin");
+}
+async function enterEditMode(){
+  if(!EDITOR_PIN){
+    const pin = prompt("Editor PIN:");
+    if(pin === null || !pin.trim()) return;
+    // Verify server-side via a saveSettings call with nothing to save —
+    // the Apps Script checks the PIN first and writes zero rows.
+    const dot = $("editDot");
+    dot.disabled = true; dot.style.opacity = "0.55";
+    try{
+      const res = await fetch(CONFIG.SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ pin: pin.trim(), action: "saveSettings", settings: {} })
+      });
+      const out = await res.json();
+      if(!out.ok){ alert("Incorrect PIN."); return; }
+      EDITOR_PIN = pin.trim();
+      sessionStorage.setItem("editPin", EDITOR_PIN);
+    }catch(e){
+      alert("Couldn't check the PIN — please check your connection and try again.");
+      return;
+    }finally{
+      dot.disabled = false; dot.style.opacity = "";
+    }
+  }
   editing = true;
   document.body.classList.add("editing");
 }
@@ -1870,7 +1900,7 @@ async function saveSettings(){
       const res = await fetch(CONFIG.SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ pin: CONFIG.EDIT_PIN, action: "saveSettings", settings: newSettings })
+        body: JSON.stringify({ pin: EDITOR_PIN, action: "saveSettings", settings: newSettings })
       });
       const out = await res.json();
       if(!out.ok) throw new Error(out.error || "Save failed");
@@ -1880,6 +1910,8 @@ async function saveSettings(){
     renderHeroCarousel();   // reflect new slider count/speed immediately
     $("settingsOverlay").classList.remove("open");
   }catch(e){
+    // A stale remembered PIN (e.g. changed in the Apps Script) must re-prompt next time.
+    if(String(e.message).indexOf("Wrong PIN") !== -1) forgetEditorPin();
     alert("Couldn't save: " + e.message + "\n\nCheck that SCRIPT_URL is deployed and the PIN matches the Apps Script.");
   }finally{
     $("settingsSave").textContent = "Save"; $("settingsSave").disabled = false;
@@ -1898,13 +1930,14 @@ async function hidePerson(){
     const res = await fetch(CONFIG.SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ pin: CONFIG.EDIT_PIN, action: "addHiddenPerson", personName: name, hideUntil: hideUntil })
+      body: JSON.stringify({ pin: EDITOR_PIN, action: "addHiddenPerson", personName: name, hideUntil: hideUntil })
     });
     const out = await res.json();
     if(!out.ok) throw new Error(out.error || "Couldn't hide that person.");
     msg.textContent = `Done — ${name} is hidden until ${hideUntil}, and will reappear on their own after that.`;
     $("hidePersonName").value = "";
   }catch(e){
+    if(String(e.message).indexOf("Wrong PIN") !== -1) forgetEditorPin();
     msg.textContent = "Couldn't save: " + e.message;
   }finally{
     btn.textContent = "Hide this person"; btn.disabled = false;
