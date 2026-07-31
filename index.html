@@ -2232,16 +2232,31 @@ async function init(){
     pinInput.focus();
   }
 
+  // Safety net: the data can take several seconds to come back, and if it ever
+  // hangs, an endless spinner looks broken. After 15s still waiting, swap in a
+  // reassuring "still loading — try again" message with a retry button. If the
+  // data does arrive after that, enter()/showForm() hides the whole gate anyway.
+  const slowTimer = setTimeout(() => {
+    gateLoading.innerHTML =
+      '<div class="gate-spinner"></div>' +
+      '<p>Still loading — this is taking longer than usual. Hang on a few more seconds, or try again.</p>' +
+      '<button type="button" id="gateRetry">Try again</button>';
+    const rb = document.getElementById("gateRetry");
+    if(rb) rb.addEventListener("click", () => location.reload());
+  }, 15000);
+
   // First (and usually only) trip: send the remembered pin, if any.
   try{
     const saved = sessionStorage.getItem("sitePin") || "";
     const out = await attempt(saved);
+    clearTimeout(slowTimer);
     if(out.ok){ enter(saved, out); return; }
     if(!out.needPin){
       gateLoading.innerHTML = "<p>Couldn't reach the server — please try refreshing the page.</p>";
       return;
     }
   }catch(e){
+    clearTimeout(slowTimer);
     gateLoading.innerHTML = "<p>Couldn't reach the server — please try refreshing the page.</p>";
     return;
   }
