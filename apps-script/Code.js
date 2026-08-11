@@ -264,6 +264,36 @@ function sheetToGvizTable_(sheet){
   return { cols: cols, rows: rows };
 }
 
+// --- Short-lived cache for the expensive content-tab reads ---
+// getSiteData used to re-open the spreadsheet and read every tab on EVERY
+// visit — slow (~5s), and it buckled under load (the 2026-07 outage). We now
+// cache the raw content tables for a few minutes so most requests skip the
+// spreadsheet entirely.
+//   SECURITY: only the raw approved sheet data is cached. handleGetSiteData
+//   still runs the password toggle + PIN check LIVE every request (Site
+//   Settings is read live, never cached), so caching never serves data past
+//   the gate. Hidden People is read live too, so temporarily hiding someone
+//   still takes effect immediately.
+var SITE_TABLE_CACHE_SECONDS = 300;   // 5 min — Sheet content edits appear within this window
+function cachedTable_(ss, sheetName){
+  var cache = CacheService.getScriptCache();
+  var key = "tbl1_" + sheetName;
+  var hit = cache.get(key);
+  if(hit){ try{ return JSON.parse(hit); }catch(e){ /* corrupt entry — fall through to a live read */ } }
+  var sh = ss.getSheetByName(sheetName);
+  var table = sh ? sheetToGvizTable_(sh) : { cols: [], rows: [] };
+  var payload = JSON.stringify(table);
+  if(payload.length < 95000){          // CacheService per-value limit is 100KB; skip caching if bigger
+    try{ cache.put(key, payload, SITE_TABLE_CACHE_SECONDS); }catch(e){ /* any cache error → just serve live */ }
+  }
+  return table;
+}
+// Wipe the cached tables now (run from the editor after a big Sheet edit if you
+// don't want to wait out the 5-minute window).
+function clearSiteDataCache(){
+  CacheService.getScriptCache().removeAll(["tbl1_" + MASTER_TAB, "tbl1_" + FORM_TAB, "tbl1_" + STAFF_TAB]);
+}
+
 // One call does everything: checks the sitePasswordOn toggle AND (if access
 // is allowed) returns all four tabs. Previously the front-end made two
 // sequential round-trips — one to check the toggle (getPublicData), then one
@@ -279,7 +309,8 @@ function handleGetSiteData(body){
   }
 
   // Read settings first — needed for the toggle either way, and it's the
-  // cheapest tab. Only read the heavy content tabs once access is settled.
+  // cheapest tab. Read it LIVE (not cached) so a password ON/OFF flip or a
+  // SITE_PIN change takes effect immediately.
   const settingsTable = tab(SETTINGS_TAB);
   let passwordOff = false;
   settingsTable.rows.forEach(function(r){
@@ -292,13 +323,17 @@ function handleGetSiteData(body){
     return json({ ok:false, needPin:true });
   }
 
+  // Content tabs come from the short-lived cache (the expensive part).
+  // Hidden People is read live inside getHiddenNames_(), and the filtering
+  // below runs live on the cached tables, so a just-hidden person disappears
+  // right away even on a cache hit.
   const hiddenNames = getHiddenNames_();
   return json({
     ok: true,
-    master: stripHiddenFromPeopleColumn_(tab(MASTER_TAB), hiddenNames),
-    stories: stripHiddenFromPeopleColumn_(tab(FORM_TAB), hiddenNames),
+    master: stripHiddenFromPeopleColumn_(cachedTable_(ss, MASTER_TAB), hiddenNames),
+    stories: stripHiddenFromPeopleColumn_(cachedTable_(ss, FORM_TAB), hiddenNames),
     settings: settingsTable,
-    staffService: removeHiddenFromStaffTable_(tab(STAFF_TAB), hiddenNames)
+    staffService: removeHiddenFromStaffTable_(cachedTable_(ss, STAFF_TAB), hiddenNames)
   });
 }
 
